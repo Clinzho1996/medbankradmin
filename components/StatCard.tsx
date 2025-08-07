@@ -8,12 +8,12 @@ interface StatCardProps {
 	positive?: boolean;
 }
 
-const StatCard = ({
+const StatCard: React.FC<StatCardProps> = ({
 	title,
 	value,
 	percentage,
 	positive = true,
-}: StatCardProps) => {
+}) => {
 	return (
 		<div className="rounded-xl border border-gray-200 p-4 flex justify-between items-end w-full max-w-sm bg-white shadow-sm">
 			<div>
