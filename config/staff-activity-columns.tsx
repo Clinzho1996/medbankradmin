@@ -1,6 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
+import { ArrowUpDown } from "lucide-react";
 
 import Loader from "@/components/Loader";
 import Modal from "@/components/Modal";
@@ -14,14 +15,11 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { IconTrash } from "@tabler/icons-react";
 import axios from "axios";
 import { getSession } from "next-auth/react";
-import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
-import { StaffDataTable } from "./staff-table";
+import { StaffActivityDataTable } from "./staff-activity-table";
 
 // This type is used to define the shape of our data.
 export type Staff = {
@@ -55,7 +53,7 @@ declare module "next-auth" {
 	}
 }
 
-const StaffTable = () => {
+const StaffActivityTable = () => {
 	const [isRestoreModalOpen, setRestoreModalOpen] = useState(false);
 	const [isReactivateModalOpen, setReactivateModalOpen] = useState(false);
 	const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -351,61 +349,53 @@ const StaffTable = () => {
 		},
 		{
 			accessorKey: "id",
-			header: "User ID",
+			header: "Log ID",
 			cell: ({ row }) => {
 				const staff = row.getValue<string>("id");
 
 				return (
 					<span className="text-xs text-primary-6">
-						{staff.length > 10 ? `${staff.slice(0, 10)}...` : staff}
+						LOG-{staff.length > 10 ? `${staff.slice(0, 10)}...` : staff}
 					</span>
 				);
 			},
 		},
 		{
-			accessorKey: "name",
-			header: "Full Name",
+			accessorKey: "type",
+			header: "Activity Type",
 			cell: ({ row }) => {
 				if (!row) return null; // or return a placeholder
-				const name = row.getValue<string>("name") || "N/A";
-				const email = row.getValue<string>("email") || "N/A";
+				const type = row.getValue<string>("type") || "Document Upload";
+				return <span className="text-xs text-primary-6">{type}</span>;
+			},
+		},
+		{
+			accessorKey: "desc",
+			header: "Description",
+			cell: ({ row }) => {
+				const desc =
+					row.getValue<string>("desc") ||
+					"Uploaded lab result - Adebayo CBC test";
+
+				return <span className="text-xs text-primary-6">{desc}</span>;
+			},
+		},
+
+		{
+			accessorKey: "Result",
+			header: ({ column }) => {
 				return (
-					<div className="flex flex-row justify-start items-center gap-2">
-						<Image
-							src="/images/avatar.png"
-							alt={name}
-							width={30}
-							height={30}
-							className="w-8 h-8 rounded-full"
-						/>
-						<span className="text-xs text-primary-6">{name}</span>
-					</div>
+					<Button
+						variant="ghost"
+						className="text-[13px] text-start items-start"
+						onClick={() =>
+							column.toggleSorting(column.getIsSorted() === "asc")
+						}>
+						Status
+						<ArrowUpDown className="ml-2 h-4 w-4" />
+					</Button>
 				);
 			},
-		},
-		{
-			accessorKey: "email",
-			header: "Email",
-			cell: ({ row }) => {
-				const email = row.getValue<string>("email");
-
-				return <span className="text-xs text-primary-6">{email}</span>;
-			},
-		},
-
-		{
-			accessorKey: "role",
-			header: "Role",
-			cell: ({ row }) => {
-				const role = row.getValue<string>("role") || "Super Admin";
-
-				return <span className="text-xs text-primary-6">{role}</span>;
-			},
-		},
-
-		{
-			accessorKey: "status",
-			header: "Status",
 			cell: ({ row }) => {
 				const status = row.getValue<string>("status");
 				return (
@@ -417,32 +407,11 @@ const StaffTable = () => {
 		},
 		{
 			accessorKey: "date",
-			header: "Last Login",
+			header: "TimeStamp",
 			cell: ({ row }) => {
 				const date = row.getValue<string>("date");
 
 				return <span className="text-xs text-primary-6">{date}</span>;
-			},
-		},
-		{
-			id: "actions",
-			header: "Action",
-			cell: ({ row }) => {
-				const actions = row.original;
-
-				return (
-					<div className="flex flex-row justify-start items-center gap-3">
-						<Link href={`/staff-management/${actions.id}`}>
-							<Button className="border border-[#E8E8E8]">View Details</Button>
-						</Link>
-
-						<Button
-							className="border border-[#E8E8E8]"
-							onClick={() => openDeleteModal(row)}>
-							<IconTrash color="#6B7280" />
-						</Button>
-					</div>
-				);
 			},
 		},
 	];
@@ -452,7 +421,7 @@ const StaffTable = () => {
 			{isLoading ? (
 				<Loader />
 			) : (
-				<StaffDataTable columns={columns} data={tableData} />
+				<StaffActivityDataTable columns={columns} data={tableData} />
 			)}
 			{isEditModalOpen && (
 				<Modal
@@ -638,4 +607,4 @@ const StaffTable = () => {
 	);
 };
 
-export default StaffTable;
+export default StaffActivityTable;

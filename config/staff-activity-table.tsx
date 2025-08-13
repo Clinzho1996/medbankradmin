@@ -67,7 +67,7 @@ interface ApiResponse {
 	status?: string;
 }
 
-export function StaffDataTable<TData, TValue>({
+export function StaffActivityDataTable<TData, TValue>({
 	columns,
 	data,
 }: DataTableProps<TData, TValue>) {
@@ -272,7 +272,7 @@ export function StaffDataTable<TData, TValue>({
 				</div>
 				<div className="p-3 flex flex-row justify-start items-center gap-3 w-full ">
 					<Input
-						placeholder="Search Staff..."
+						placeholder="Search Activity..."
 						value={globalFilter}
 						onChange={(e) => setGlobalFilter(e.target.value)}
 						className="focus:border-none bg-[#F9FAFB]"
