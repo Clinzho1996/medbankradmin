@@ -382,7 +382,7 @@ const StaffActivityTable = () => {
 		},
 
 		{
-			accessorKey: "Result",
+			accessorKey: "status",
 			header: ({ column }) => {
 				return (
 					<Button
