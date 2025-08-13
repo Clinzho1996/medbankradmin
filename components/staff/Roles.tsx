@@ -162,15 +162,32 @@ function Roles() {
 						</div>
 
 						{/* Step indicator */}
-						<div className="flex justify-between mb-6">
+						<div className="flex items-center justify-between mb-6 relative">
+							{/* Connecting line */}
+							<div className="absolute top-4 left-0 right-0 h-[2px] bg-gray-200 -z-10"></div>
+
 							{[1, 2, 3].map((step) => (
 								<div
 									key={step}
-									className={`flex flex-col items-center ${
+									className={`flex flex-col items-center relative ${
 										currentStep >= step ? "text-primary" : "text-gray-400"
 									}`}>
+									{/* Active line segment for completed steps */}
+									{step > 1 && (
+										<div
+											className={`absolute w-full h-[2px]  top-4 ${
+												currentStep >= step
+													? "bg-secondary-1"
+													: "bg-transparent"
+											}`}
+											style={{
+												left: `calc(-100% - 70px)`,
+												right: `calc(100% + 70px)`,
+											}}></div>
+									)}
+
 									<div
-										className={`w-8 h-8 rounded-full flex items-center justify-center ${
+										className={`w-8 h-8 rounded-full flex items-center justify-center relative ${
 											currentStep >= step
 												? "bg-secondary-1 text-white"
 												: "bg-gray-200"
