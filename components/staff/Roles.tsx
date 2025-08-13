@@ -426,14 +426,14 @@ function Roles() {
 						)}
 
 						{/* Navigation buttons */}
-						<div className="flex justify-between mt-6">
+						<div className="flex justify-end mt-6 gap-3">
 							<button
 								onClick={handlePrevStep}
 								disabled={currentStep === 1}
 								className={`px-4 py-2 rounded-md ${
 									currentStep === 1
-										? "bg-gray-200 text-gray-500 cursor-not-allowed"
-										: "bg-gray-200 text-gray-700 hover:bg-gray-300"
+										? "bg-gray-200 text-gray-500 cursor-not-allowed border border-gray-300"
+										: "bg-white text-gray-700 hover:bg-gray-300 border border-gray-300"
 								}`}>
 								Back
 							</button>
