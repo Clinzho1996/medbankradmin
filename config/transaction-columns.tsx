@@ -90,7 +90,7 @@ const TransactionTableComponent = () => {
 			}
 
 			const response = await axios.get<ApiResponse>(
-				"https://api.kuditrak.ng/api/v1/transaction",
+				"https://api.comicscrolls.com/api/v1/transaction",
 				{
 					headers: {
 						Accept: "application/json",

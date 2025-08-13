@@ -62,17 +62,17 @@ export function DateRangePicker({
 					modifiers={modifiers}
 					modifiersStyles={{
 						start: {
-							backgroundColor: "#FF9100",
+							backgroundColor: "#173c3d",
 							color: "white",
 							borderRadius: "4px",
 						},
 						end: {
-							backgroundColor: "#FF9100",
+							backgroundColor: "#173c3d",
 							color: "white",
 							borderRadius: "4px",
 						},
 						rangeMiddle: {
-							backgroundColor: "#FEF8EF",
+							backgroundColor: "#4285F41A",
 							borderRadius: "4px",
 						},
 					}}

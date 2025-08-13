@@ -6,30 +6,37 @@ import { ArrowUpDown } from "lucide-react";
 import Loader from "@/components/Loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { MoreHorizontal } from "lucide-react";
+
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { IconEye } from "@tabler/icons-react";
 import axios from "axios";
 import { getSession } from "next-auth/react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { DataTable } from "./data-table";
 
 // Define the expected API response type
-interface ApiResponse {
-	status: string;
-	data: Budget[];
-}
 
-export interface Budget {
+export type Readers = {
 	id: string;
-	user_id: string;
-	budget_category: string;
-	budget_description: string;
-	budget_deadline: string;
-	budget_amount: string;
-	budget_balance: string;
-	budget_status: string;
-	remind_me_at: string;
-	created_at: string;
-	updated_at: string;
-}
+	name: string;
+	date: string;
+	firstName?: string;
+	lastName?: string;
+	role?: string;
+	staff?: string;
+	bookRead: number;
+	subStatus: "free" | "subscribed";
+	status: "Completed" | "In Progress" | "Cancelled" | "inactive" | "active";
+	email: string;
+	profile_pic?: string;
+};
 
 declare module "next-auth" {
 	interface Session {
@@ -41,17 +48,17 @@ const Table = () => {
 	const [isLoading, setIsLoading] = useState<boolean>(false);
 	const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
 	const [isCloseModalOpen, setCloseModalOpen] = useState(false);
-	const [selectedRow, setSelectedRow] = useState<Budget | null>(null);
+	const [selectedRow, setSelectedRow] = useState<Readers | null>(null);
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-	const [tableData, setTableData] = useState<Budget[]>([]);
+	const [tableData, setTableData] = useState<Readers[]>([]);
 	const [progress, setProgress] = useState(0);
 
-	const openDeleteModal = (row: { original: Budget }) => {
+	const openDeleteModal = (row: { original: Readers }) => {
 		setSelectedRow(row.original);
 		setDeleteModalOpen(true);
 	};
 
-	const openCloseModal = (row: { original: Budget }) => {
+	const openCloseModal = (row: { original: Readers }) => {
 		setSelectedRow(row.original);
 		setCloseModalOpen(true);
 	};
@@ -70,8 +77,8 @@ const Table = () => {
 				return;
 			}
 
-			const response = await axios.get<ApiResponse>(
-				"https://api.kuditrak.ng/api/v1/budget",
+			const response = await axios.get(
+				"https://api.comicscrolls.com/api/v1/user/role?type=reader",
 				{
 					headers: {
 						Accept: "application/json",
@@ -81,20 +88,20 @@ const Table = () => {
 			);
 
 			if (response.data.status === "success") {
-				setTableData(response.data.data);
+				// Map the API response to match the `Readers` type
+				const formattedData = response.data.data.map((reader: any) => ({
+					id: reader.id,
+					name: reader.full_name,
+					date: reader.created_at,
+					bookRead: reader.books_read,
+					subStatus: reader.is_premium ? "subscribed" : "free",
+					status: reader.is_blocked ? "inactive" : "active",
+					email: reader.email,
+				}));
 
-				const totalBalance = response.data.data.reduce(
-					(sum, budget) => sum + parseFloat(budget.budget_balance || "0"),
-					0
-				);
-				const totalAmount = response.data.data.reduce(
-					(sum, budget) => sum + parseFloat(budget.budget_amount || "0"),
-					0
-				);
-				const calculatedProgress =
-					totalAmount > 0 ? totalBalance / totalAmount : 0;
+				setTableData(formattedData);
 
-				setProgress(Math.min(Math.max(calculatedProgress, 0), 1));
+				console.log("Readers Data:", formattedData);
 			}
 		} catch (error) {
 			console.error("Error fetching budget data:", error);
@@ -107,27 +114,14 @@ const Table = () => {
 		fetchBudgetData();
 	}, []);
 
-	const handleDelete = () => {
-		const selectedRowIds = Object.keys(rowSelection).filter(
-			(key) => rowSelection[key]
-		);
-
-		// Filter out selected rows
-		const filteredData = tableData.filter(
-			(row) => !selectedRowIds.includes(row.id)
-		);
-		setTableData(filteredData);
-		setRowSelection({});
-		closeDeleteModal();
-	};
-
-	const formatDate = (rawDate: string) => {
+	const formatDate = (rawDate: string | Date) => {
 		const options: Intl.DateTimeFormatOptions = {
 			year: "numeric",
-			month: "short",
+			month: "long",
 			day: "numeric",
 		};
-		const parsedDate = new Date(rawDate);
+		const parsedDate =
+			typeof rawDate === "string" ? new Date(rawDate) : rawDate;
 		return new Intl.DateTimeFormat("en-US", options).format(parsedDate);
 	};
 
@@ -140,7 +134,7 @@ const Table = () => {
 	};
 
 	// Define table columns
-	const columns: ColumnDef<Budget>[] = [
+	const columns: ColumnDef<Readers>[] = [
 		{
 			id: "select",
 			header: ({ table }) => (
@@ -164,124 +158,108 @@ const Table = () => {
 			),
 		},
 		{
-			accessorKey: "budget_category",
-			header: ({ column }) => (
-				<Button
-					variant="ghost"
-					className="text-[13px] text-left"
-					onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-					Category
-					<ArrowUpDown className="ml-2 h-4 w-4" />
-				</Button>
-			),
+			accessorKey: "name",
+			header: "Order ID",
 			cell: ({ row }) => {
-				const category = row.getValue<string>("budget_category");
+				if (!row) return null; // or return a placeholder
+				const name = row.getValue<string>("name") || "N/A";
 				return (
-					<span className="text-xs text-black capitalize">{category}</span>
+					<span className="text-xs text-black capitalize t-data">{name}</span>
 				);
 			},
 		},
 		{
-			accessorKey: "budget_description",
-			header: "Description",
+			accessorKey: "staff",
+			header: "Customer Name",
 			cell: ({ row }) => {
-				const description = row.getValue<string>("budget_description");
-				return <span className="text-xs text-primary-6">{description}</span>;
+				const staff = row.getValue<string>("staff");
+
+				return <span className="text-xs text-primary-6">{staff}</span>;
 			},
 		},
+
 		{
-			accessorKey: "budget_amount",
-			header: ({ column }) => (
-				<Button
-					variant="ghost"
-					className="text-[13px] text-left"
-					onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-					Amount
-					<ArrowUpDown className="ml-2 h-4 w-4" />
-				</Button>
-			),
+			accessorKey: "date",
+			header: "Date",
 			cell: ({ row }) => {
-				const amount = row.getValue<string>("budget_amount");
-				return (
-					<span className="text-xs text-primary-6">
-						{formatCurrency(amount)}
-					</span>
-				);
-			},
-		},
-		{
-			accessorKey: "budget_balance",
-			header: "Balance",
-			cell: ({ row }) => {
-				const balance = row.getValue<string>("budget_balance");
-				return (
-					<span className="text-xs text-primary-6">
-						{formatCurrency(balance)}
-					</span>
-				);
-			},
-		},
-		{
-			accessorKey: "progress",
-			header: "Spending Progress",
-			cell: ({ row }) => {
-				const amount = parseFloat(row.getValue<string>("budget_amount"));
-				const balance = parseFloat(row.getValue<string>("budget_balance"));
-				const spent = amount - balance;
-				const progress = (spent / amount) * 100;
-				const progressPercentage = Math.min(Math.max(progress, 0), 100); // Clamp between 0-100
+				const rawDate = row.original.date;
+				const date = new Date(rawDate); // ✅ Convert it to a Date object
 
 				return (
-					<div className="flex items-center gap-2 w-full">
-						<div className="w-full bg-gray-200 rounded-full h-2">
-							<div
-								className={`h-2 rounded-full ${
-									progressPercentage < 50
-										? "bg-green-500 bggreen"
-										: "bg-red-500 bgred"
-								}`}
-								style={{ width: `${progressPercentage}%` }}
-							/>
-						</div>
-						<span className="text-xs text-gray-600 w-12">
-							{progressPercentage.toFixed(0)}%
-						</span>
+					<span className="text-xs text-primary-6">{formatDate(date)}</span>
+				);
+			},
+		},
+		{
+			accessorKey: "staff",
+			header: "Order Type",
+			cell: ({ row }) => {
+				const staff = row.getValue<string>("staff");
+
+				return <span className="text-xs text-primary-6">{staff}</span>;
+			},
+		},
+		{
+			accessorKey: "date",
+			header: "Service Type",
+			cell: ({ row }) => {
+				const rawDate = row.original.date;
+				const date = new Date(rawDate); // ✅ Convert it to a Date object
+
+				return (
+					<span className="text-xs text-primary-6">{formatDate(date)}</span>
+				);
+			},
+		},
+		{
+			accessorKey: "status",
+			header: ({ column }) => {
+				return (
+					<Button
+						variant="ghost"
+						className="text-[13px] text-start items-start"
+						onClick={() =>
+							column.toggleSorting(column.getIsSorted() === "asc")
+						}>
+						Status
+						<ArrowUpDown className="ml-2 h-4 w-4" />
+					</Button>
+				);
+			},
+			cell: ({ row }) => {
+				const status = row.getValue<string>("status");
+				return (
+					<div className={`status ${status === "active" ? "green" : "red"}`}>
+						{status}
 					</div>
 				);
 			},
 		},
 		{
-			accessorKey: "budget_status",
-			header: "Status",
+			id: "actions",
+			header: "Action",
 			cell: ({ row }) => {
-				const status = row.getValue<string>("budget_status");
+				const actions = row.original;
+
 				return (
-					<span
-						className={`text-xs px-2 py-1 rounded-full ${
-							status === "active" ? "bg-green-100 status green" : "status red"
-						}`}>
-						{status}
-					</span>
-				);
-			},
-		},
-		{
-			accessorKey: "budget_deadline",
-			header: "Deadline",
-			cell: ({ row }) => {
-				const deadline = row.getValue<string>("budget_deadline");
-				return (
-					<span className="text-xs text-primary-6">{formatDate(deadline)}</span>
-				);
-			},
-		},
-		{
-			accessorKey: "remind_me_at",
-			header: "Reminder",
-			cell: ({ row }) => {
-				const reminder = row.getValue<string>("remind_me_at");
-				return (
-					<span className="text-xs text-primary-6 capitalize">{reminder}</span>
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button
+								variant="ghost"
+								className="h-8 w-8 p-2 bg-white border-[1px] bborder-[#E8E8E8]">
+								<span className="sr-only">Open menu</span>
+								<MoreHorizontal className="h-4 w-4" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" className="bg-white">
+							<Link href={`/orders/${actions.id}`}>
+								<DropdownMenuItem className="action cursor-pointer hover:bg-secondary-3">
+									<IconEye />
+									<p className="text-xs font-inter">View Order</p>
+								</DropdownMenuItem>
+							</Link>
+						</DropdownMenuContent>
+					</DropdownMenu>
 				);
 			},
 		},
