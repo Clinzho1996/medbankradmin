@@ -147,8 +147,8 @@ function Roles() {
 			{isModalOpen && (
 				<div className="fixed inset-0  bg-black bg-opacity-50 flex items-center justify-center z-50">
 					<div className="bg-white rounded-lg border border-secondary-1 p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-						<div className="flex justify-between items-center mb-4">
-							<h2 className="text-xl font-semibold">
+						<div className="flex justify-between items-center mb-4 border-b pb-3">
+							<h2 className="text-sm text-gray-700 font-sequel  font-normal">
 								{isEditMode ? "Edit Role" : "Create New Role"}
 							</h2>
 							<button
