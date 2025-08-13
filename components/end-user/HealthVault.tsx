@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { IconArrowRight } from "@tabler/icons-react";
-import { FileText } from "lucide-react";
+import Image from "next/image";
 
 const HealthVault = () => {
 	const vaultSections = [
@@ -150,9 +150,14 @@ const HealthVault = () => {
 											key={file.id}
 											className="p-4 flex items-center shadow">
 											{/* File Preview */}
-											<div className="w-12 h-12 bg-gray-100 rounded-md flex items-center justify-center mr-4 overflow-hidden">
+											<div className="w-12 h-12  rounded-md flex items-center justify-center mr-4 overflow-hidden">
 												{file.type === "pdf" ? (
-													<FileText className="w-6 h-6 text-red-500" />
+													<Image
+														src="/images/pdfs.png"
+														alt="PDF Icon"
+														width={40}
+														height={40}
+													/>
 												) : (
 													<img
 														src={file.preview}

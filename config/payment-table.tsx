@@ -17,7 +17,6 @@ import {
 import { Button } from "@/components/ui/button";
 
 import Modal from "@/components/Modal";
-import TabCard from "@/components/TabCard";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Input } from "@/components/ui/input";
 import {
@@ -399,18 +398,7 @@ export function PaymentDataTable<TData, TValue>({
 					borderTopLeftRadius: "0.5rem",
 					borderTopRightRadius: "0.5rem",
 				}}>
-				<div className="flex flex-row justify-start items-center gap-3">
-					<TabCard
-						title="Total Payments"
-						value={12000}
-						icon="/images/salesicon.png"
-					/>
-					<TabCard
-						title="Pending Payments"
-						value={1500}
-						icon="/images/salesicon.png"
-					/>
-				</div>
+				<div className="flex flex-row justify-start items-center gap-3"></div>
 				<div className="flex flex-row justify-start items-center gap-3 font-inter"></div>
 			</div>
 
