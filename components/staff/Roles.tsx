@@ -121,11 +121,19 @@ function Roles() {
 		}
 	};
 
-	const openEditModal = (role: any) => {
+	type RoleType = {
+		title: string;
+		description?: string;
+		staffs?: string[];
+		password?: string;
+		permissions?: string[];
+	};
+
+	const openEditModal = (role: RoleType) => {
 		setIsEditMode(true);
 		setRoleData({
 			title: role.title,
-			description: role.description,
+			description: role.description || "",
 			staffs: role.staffs || [],
 			password: role.password || generatePassword(),
 			permissions: role.permissions || [],
@@ -137,8 +145,8 @@ function Roles() {
 		<div className="flex flex-col gap-3">
 			{/* Modal */}
 			{isModalOpen && (
-				<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-					<div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+				<div className="fixed inset-0  bg-black bg-opacity-50 flex items-center justify-center z-50">
+					<div className="bg-white rounded-lg border border-secondary-1 p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
 						<div className="flex justify-between items-center mb-4">
 							<h2 className="text-xl font-semibold">
 								{isEditMode ? "Edit Role" : "Create New Role"}
