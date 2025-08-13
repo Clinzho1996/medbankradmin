@@ -1,5 +1,11 @@
+import MedicationTable from "@/config/medication-columns";
+
 function Medication() {
-	return <div>Medication</div>;
+	return (
+		<div>
+			<MedicationTable />
+		</div>
+	);
 }
 
 export default Medication;

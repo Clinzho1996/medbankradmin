@@ -1,5 +1,11 @@
+import ActivityTable from "@/config/activity-columns";
+
 function Activity() {
-	return <div>Activity</div>;
+	return (
+		<div>
+			<ActivityTable />
+		</div>
+	);
 }
 
 export default Activity;
