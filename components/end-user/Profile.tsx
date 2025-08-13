@@ -117,7 +117,7 @@ function Profile() {
 
 								<div className="flex flex-col gap-2 w-full sm:w-[25%]">
 									<p className="text-xs text-[#6B7280]">Height</p>
-									<p className="text-sm text-dark-1">5'8"</p>
+									<p className="text-sm text-dark-1">5&apos;8</p>
 								</div>
 
 								<div className="flex flex-col gap-2 w-full sm:w-[25%]">
