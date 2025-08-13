@@ -1,4 +1,5 @@
 import HeaderBox from "@/components/HeaderBox";
+import Roles from "@/components/staff/Roles";
 import StatCard from "@/components/StatCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StaffTable from "@/config/staff-columns";
@@ -68,7 +69,9 @@ function StaffManagement() {
 					<TabsContent value="staffs">
 						<StaffTable />
 					</TabsContent>
-					<TabsContent value="roles_and_permissions">Roles</TabsContent>
+					<TabsContent value="roles_and_permissions">
+						<Roles />
+					</TabsContent>
 				</Tabs>
 			</div>
 		</div>
