@@ -85,8 +85,8 @@ const HealthVault = () => {
 			],
 		},
 		{
-			id: "insurance",
-			name: "Insurance",
+			id: "diagnosis",
+			name: "Diagnosis",
 			icon: (
 				<img
 					src="/images/fold4.png"
@@ -98,6 +98,148 @@ const HealthVault = () => {
 				{
 					id: "6",
 					name: "Health Insurance Policy",
+					type: "pdf",
+					date: "2025-01-10",
+					size: "5.1MB",
+					preview: "/placeholder-insurance.jpg",
+				},
+				{
+					id: "7",
+					name: "Diagnosis Report",
+					type: "pdf",
+					date: "2025-01-10",
+					size: "5.1MB",
+					preview: "/placeholder-insurance.jpg",
+				},
+				{
+					id: "8",
+					name: "Lab Results",
+					type: "pdf",
+					date: "2025-01-10",
+					size: "5.1MB",
+					preview: "/placeholder-insurance.jpg",
+				},
+			],
+		},
+		{
+			id: "immunization",
+			name: "Immunization Records",
+			icon: (
+				<img
+					src="/images/fold3.png"
+					alt="Medical Records"
+					className="w-10 h-10 object-contain"
+				/>
+			),
+			files: [
+				{
+					id: "6",
+					name: "Immunization Certificate",
+					type: "pdf",
+					date: "2025-01-10",
+					size: "5.1MB",
+					preview: "/placeholder-insurance.jpg",
+				},
+			],
+		},
+		{
+			id: "chronic",
+			name: "Chronic Diseases",
+			icon: (
+				<img
+					src="/images/fold4.png"
+					alt="Medical Records"
+					className="w-10 h-10 object-contain"
+				/>
+			),
+			files: [
+				{
+					id: "6",
+					name: "Chronic Disease Management Plan",
+					type: "pdf",
+					date: "2025-01-10",
+					size: "5.1MB",
+					preview: "/placeholder-insurance.jpg",
+				},
+			],
+		},
+		{
+			id: "surgical",
+			name: "Surgical & Hospitalization",
+			icon: (
+				<img
+					src="/images/fold.png"
+					alt="Medical Records"
+					className="w-10 h-10 object-contain"
+				/>
+			),
+			files: [
+				{
+					id: "6",
+					name: "Surgical Report",
+					type: "pdf",
+					date: "2025-01-10",
+					size: "5.1MB",
+					preview: "/placeholder-insurance.jpg",
+				},
+			],
+		},
+		{
+			id: "fitness",
+			name: "Fitness & Wellness",
+			icon: (
+				<img
+					src="/images/fold2.png"
+					alt="Medical Records"
+					className="w-10 h-10 object-contain"
+				/>
+			),
+			files: [
+				{
+					id: "6",
+					name: "Fitness Assessment",
+					type: "pdf",
+					date: "2025-01-10",
+					size: "5.1MB",
+					preview: "/placeholder-insurance.jpg",
+				},
+			],
+		},
+		{
+			id: "insurance",
+			name: "Insurance & Admins",
+			icon: (
+				<img
+					src="/images/fold3.png"
+					alt="Medical Records"
+					className="w-10 h-10 object-contain"
+				/>
+			),
+			files: [
+				{
+					id: "6",
+					name: "Health Insurance Policy",
+					type: "pdf",
+					date: "2025-01-10",
+					size: "5.1MB",
+					preview: "/placeholder-insurance.jpg",
+				},
+			],
+		},
+		{
+			id: "others",
+			name: "Others",
+			icon: (
+				<img
+					src="/images/fold4.png"
+					alt="Medical Records"
+					className="w-10 h-10 object-contain"
+				/>
+			),
+			files: [
+				{
+					id: "6",
+					name: "Other Medical Records",
 					type: "pdf",
 					date: "2025-01-10",
 					size: "5.1MB",
