@@ -134,7 +134,7 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 			}
 
 			await axios.delete(
-				`https://api.kuditrak.ng/api/v1/post/${selectedRow.id}`,
+				`https://api.kuditrak.unknown/api/v1/post/${selectedRow.id}`,
 				{
 					headers: {
 						Authorization: `Bearer ${session?.accessToken}`,
