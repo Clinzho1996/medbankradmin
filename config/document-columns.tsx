@@ -1,7 +1,6 @@
 "use client";
 
 import { ColumnDef, RowSelectionState } from "@tanstack/react-table";
-import { ArrowUpDown } from "lucide-react";
 
 import Loader from "@/components/Loader";
 import { Button } from "@/components/ui/button";
@@ -18,6 +17,28 @@ interface ApiResponse {
 		data: Transaction[];
 	};
 }
+
+const trafficData = [
+	{
+		platform: "IOS",
+		value: 143382,
+		color: "#8B5CF6",
+		barCount: 30,
+	},
+	{
+		platform: "Android",
+		value: 87974,
+		color: "#34D399",
+		barCount: 40,
+	},
+	{
+		platform: "Web",
+		value: 87974,
+		color: "#F59E0B",
+		barCount: 50,
+	},
+];
+
 export type Transaction = {
 	id: string;
 	user: { first_name: string; last_name: string; other_name: string };
@@ -121,6 +142,23 @@ const DocumentTable = () => {
 		return new Intl.DateTimeFormat("en-US", options).format(parsedDate);
 	};
 
+	const renderBars = (filled: number, total: number, colors: string[]) => {
+		return (
+			<div className="flex flex-wrap gap-1 mt-2">
+				{Array.from({ length: total }).map((_, index) => (
+					<div
+						key={index}
+						className="w-[6px] h-12 rounded-sm"
+						style={{
+							backgroundColor:
+								index < filled ? colors[index % colors.length] : "#E5E7EB",
+						}}
+					/>
+				))}
+			</div>
+		);
+	};
+
 	const columns: ColumnDef<Transaction>[] = [
 		{
 			id: "select",
@@ -150,7 +188,11 @@ const DocumentTable = () => {
 			cell: ({ row }) => {
 				const id = row.getValue<string>("id");
 
-				return <span className="text-xs text-primary-6">{id}</span>;
+				return (
+					<span className="text-xs text-primary-6">
+						FOL-{id.length > 10 ? `${id.slice(0, 10)}...` : id}
+					</span>
+				);
 			},
 		},
 		{
@@ -176,55 +218,16 @@ const DocumentTable = () => {
 
 		{
 			accessorKey: "amount",
-			header: "Amount",
+			header: "Number of Files",
 			cell: ({ row }) => {
 				const amount = row.getValue<string>("amount");
 
 				return <span className="text-xs text-primary-6">{amount}</span>;
 			},
 		},
-
-		{
-			accessorKey: "status",
-			header: ({ column }) => {
-				return (
-					<Button
-						variant="ghost"
-						className="text-[13px] text-start items-start"
-						onClick={() =>
-							column.toggleSorting(column.getIsSorted() === "asc")
-						}>
-						Status
-						<ArrowUpDown className="ml-2 h-4 w-4" />
-					</Button>
-				);
-			},
-			cell: ({ row }) => {
-				const status = row.getValue<string>("status");
-				return (
-					<div className={`status ${status === "completed" ? "green" : "red"}`}>
-						{status}
-					</div>
-				);
-			},
-		},
-
-		{
-			accessorKey: "id",
-			header: "Transaction ID",
-			cell: ({ row }) => {
-				const id = row.getValue<string>("id");
-
-				return (
-					<span className="text-xs text-primary-6">
-						{id.length > 20 ? id.slice(0, 20) + "..." : id}
-					</span>
-				);
-			},
-		},
 		{
 			accessorKey: "created",
-			header: "Created On",
+			header: "Date Created",
 			cell: ({ row }) => {
 				const created = row.getValue<string>("created");
 
@@ -236,11 +239,27 @@ const DocumentTable = () => {
 
 		{
 			accessorKey: "narration",
-			header: "Narration",
+			header: "Percentage",
 			cell: ({ row }) => {
-				const narration = row.getValue<string>("narration");
+				// Generate random percentage between 0 and 100 for demonstration
+				const percentage = Math.min(100, Math.round(Math.random() * 120)); // Ensures max 100%
+				const colors = ["#8B5CF6", "#34D399", "#F59E0B", "#EF4444", "#3B82F6"]; // Different colors
 
-				return <span className="text-xs text-primary-6">{narration}</span>;
+				return (
+					<div className="flex flex-row justify-start items-center gap-4">
+						<span className="text-xs text-primary-6">
+							{renderBars(
+								Math.round((20 * percentage) / 100), // 20 bars total
+								20, // Total bars
+								colors
+							)}
+						</span>
+
+						<span className="bg-[#EFF1F5] p-2 border rounded-lg text-[#5B88FC]">
+							{percentage}%
+						</span>
+					</div>
+				);
 			},
 		},
 
