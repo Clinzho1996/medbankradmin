@@ -1,26 +1,22 @@
 "use client";
 
-import {
-	ColumnDef,
-	ColumnFiltersState,
-	RowSelectionState,
-	SortingState,
-	VisibilityState,
-} from "@tanstack/react-table";
+import { ColumnDef, RowSelectionState } from "@tanstack/react-table";
 import { ArrowUpDown } from "lucide-react";
 
 import Loader from "@/components/Loader";
 import Modal from "@/components/Modal";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { IconCloudDownload } from "@tabler/icons-react";
 import axios from "axios";
 import { getSession } from "next-auth/react";
-import React, { useEffect, useState } from "react";
+import Image from "next/image";
+import { useEffect, useState } from "react";
 import { TransactionSubTables } from "./TransactionSubTables";
 
 interface ApiResponse {
-	data: Transaction[];
+	data: {
+		data: Transaction[];
+	};
 }
 export type Transaction = {
 	id: string;
@@ -47,31 +43,13 @@ declare module "next-auth" {
 const TransactionTableComponent = () => {
 	const [isLoading, setIsLoading] = useState<boolean>(false);
 	const [tableData, setTableData] = useState<Transaction[]>([]);
-	const [isRestoreModalOpen, setRestoreModalOpen] = useState(false);
 	const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
 	const [selectedRow, setSelectedRow] = useState<any>(null);
-
-	const [sorting, setSorting] = React.useState<SortingState>([]);
-	const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-		[]
-	);
-	const [columnVisibility, setColumnVisibility] =
-		React.useState<VisibilityState>({});
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-	const [globalFilter, setGlobalFilter] = useState("");
-
-	const openRestoreModal = (row: any) => {
-		setSelectedRow(row.original); // Use row.original to store the full row data
-		setRestoreModalOpen(true);
-	};
 
 	const openDeleteModal = (row: any) => {
 		setSelectedRow(row.original); // Use row.original to store the full row data
 		setDeleteModalOpen(true);
-	};
-
-	const closeRestoreModal = () => {
-		setRestoreModalOpen(false);
 	};
 
 	const closeDeleteModal = () => {
@@ -90,7 +68,7 @@ const TransactionTableComponent = () => {
 			}
 
 			const response = await axios.get<ApiResponse>(
-				"https://api.comicscrolls.com/api/v1/transaction",
+				"https://api.kuditrak.ng/api/v1/transaction/all",
 				{
 					headers: {
 						Accept: "application/json",
@@ -99,7 +77,7 @@ const TransactionTableComponent = () => {
 				}
 			);
 
-			const fetchedData = response.data.data;
+			const fetchedData = response.data.data.data;
 
 			console.log("Transaction Data:", fetchedData);
 
@@ -168,23 +146,23 @@ const TransactionTableComponent = () => {
 		},
 		{
 			accessorKey: "name",
-			header: ({ column }) => {
-				return (
-					<Button
-						variant="ghost"
-						className="text-[13px] text-left"
-						onClick={() =>
-							column.toggleSorting(column.getIsSorted() === "asc")
-						}>
-						Name
-						<ArrowUpDown className="ml-2 h-4 w-4" />
-					</Button>
-				);
-			},
+			header: "Sender",
 			cell: ({ row }) => {
-				const name = row.getValue<string>("name");
-
-				return <span className="text-xs text-black">{name}</span>;
+				if (!row) return null; // or return a placeholder
+				const name = row.getValue<string>("name") || "N/A";
+				const email = row.getValue<string>("email") || "N/A";
+				return (
+					<div className="flex flex-row justify-start items-center gap-2">
+						<Image
+							src="/images/avatar.png"
+							alt={name}
+							width={30}
+							height={30}
+							className="w-8 h-8 rounded-full"
+						/>
+						<span className="text-xs text-primary-6">{name}</span>
+					</div>
+				);
 			},
 		},
 
@@ -238,19 +216,7 @@ const TransactionTableComponent = () => {
 		},
 		{
 			accessorKey: "created",
-			header: ({ column }) => {
-				return (
-					<Button
-						variant="ghost"
-						className="text-[13px] text-left"
-						onClick={() =>
-							column.toggleSorting(column.getIsSorted() === "asc")
-						}>
-						Created on
-						<ArrowUpDown className="ml-2 h-4 w-4" />
-					</Button>
-				);
-			},
+			header: "Created On",
 			cell: ({ row }) => {
 				const created = row.getValue<string>("created");
 
@@ -281,26 +247,13 @@ const TransactionTableComponent = () => {
 						<Button
 							className="border-[#E8E8E8] border-[1px] text-sm font-medium text-[#6B7280] font-inter"
 							onClick={() => openDeleteModal(row)}>
-							<IconCloudDownload />
+							View Details
 						</Button>
 					</div>
 				);
 			},
 		},
 	];
-
-	const handleDelete = () => {
-		const selectedRowIds = Object.keys(rowSelection).filter(
-			(key) => rowSelection[key]
-		);
-
-		// Ensure the row ids match the data's keys and use the correct identifier
-		const filteredData = tableData.filter(
-			(row) => !selectedRowIds.includes(row.id) // assuming row.id is your unique identifier
-		);
-		setTableData(filteredData);
-		setRowSelection({}); // Clear row selection after deletion
-	};
 
 	return (
 		<>
@@ -311,23 +264,110 @@ const TransactionTableComponent = () => {
 			)}
 			{isDeleteModalOpen && (
 				<Modal onClose={closeDeleteModal} isOpen={isDeleteModalOpen}>
-					<p>Are you sure you want to delete {selectedRow?.name}'s account?</p>
+					<div className="flex flex-col gap-4 w-full sm:w-[500px]">
+						<div className="border-y p-3">
+							<p className="text-xs text-[#6C7278]">AMOUNT</p>
 
-					<p className="text-sm text-primary-6">This can't be undone</p>
-					<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">
-						<Button
-							className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs"
-							onClick={closeDeleteModal}>
-							Cancel
-						</Button>
-						<Button
-							className="bg-[#F04F4A] text-white font-inter text-xs modal-delete"
-							onClick={() => {
-								handleDelete();
-								closeDeleteModal();
-							}}>
-							Yes, Confirm
-						</Button>
+							<div className="flex flex-row justify-start items-center gap-4">
+								<span className=" text-dark-1 text-sm">
+									₦{selectedRow?.amount}
+								</span>
+								<span className="status green">{selectedRow?.status}</span>
+							</div>
+						</div>
+
+						<div className="border-b pb-3 px-3 flex flex-row justify-start items-center gap-10">
+							<div className="flex flex-col justify-start gap-1">
+								<p className="text-xs text-[#6C7278]">Transaction ID</p>
+								<span className=" text-dark-1 text-sm">
+									{selectedRow?.id.length > 10
+										? selectedRow?.id.slice(0, 10) + "..."
+										: selectedRow?.id}
+								</span>
+							</div>
+							<p className="text-xs text-[#6C7278]">|</p>
+							<div className="flex flex-col justify-start gap-1">
+								<p className="text-xs text-[#6C7278]">Transaction Date</p>
+								<span className=" text-dark-1 text-sm">
+									{selectedRow?.created}
+								</span>
+							</div>
+						</div>
+
+						<div className="border-b pb-3 px-3 flex flex-row justify-start items-center gap-10 shadow-lg">
+							<div className="flex flex-col justify-start gap-1">
+								<p className="text-dark-1 text-xs ">Transaction Details</p>
+							</div>
+						</div>
+
+						<div className="border border-secondary-1 rounded-lg p-3 flex flex-col gap-4 shadow-lg shadow-[#E4E5E73D]">
+							<div className="flex flex-row justify-between items-center">
+								<p className="text-xs text-[#6C7278]">Sender ID</p>
+								<p className="text-sm text-dark-1">{selectedRow?.id}</p>
+							</div>
+
+							<div className="flex flex-row justify-between items-center">
+								<p className="text-xs text-[#6C7278]">Sender Name</p>
+								<p className="text-sm text-dark-1">{selectedRow?.name}</p>
+							</div>
+
+							<div className="flex flex-row justify-between items-center">
+								<p className="text-xs text-[#6C7278]">Sender Email</p>
+								<p className="text-sm text-dark-1">
+									{selectedRow?.email}{" "}
+									<span className="text-xs text-[#6C7278]">Not Provided</span>
+								</p>
+							</div>
+							<div className="flex flex-row justify-between items-center">
+								<p className="text-xs text-[#6C7278]">Type</p>
+								<p className="text-sm text-dark-1">{selectedRow?.narration}</p>
+							</div>
+
+							<div className="flex flex-row justify-between items-center">
+								<p className="text-xs text-[#6C7278]">Description</p>
+								<p className="text-sm text-dark-1">
+									Premium Individual - Monthly
+								</p>
+							</div>
+
+							<div className="flex flex-row justify-between items-center">
+								<p className="text-xs text-[#6C7278]">Payment Method</p>
+								<p className="text-sm text-dark-1">Debit Card</p>
+							</div>
+						</div>
+
+						<div className="border-b py-3 px-3 flex flex-row justify-start items-center gap-10 shadow-lg">
+							<div className="flex flex-col justify-start gap-1">
+								<p className="text-dark-1 text-xs ">Payment Details</p>
+							</div>
+						</div>
+
+						<div className="border border-secondary-1 rounded-lg p-3 flex flex-col gap-4 shadow-lg shadow-[#E4E5E73D]">
+							<div className="flex flex-row justify-between items-center">
+								<p className="text-xs text-[#6C7278]">Gateway</p>
+								<p className="text-sm text-dark-1">Paystack</p>
+							</div>
+
+							<div className="flex flex-row justify-between items-center">
+								<p className="text-xs text-[#6C7278]">Reference</p>
+								<p className="text-sm text-dark-1">psk_2024_001234</p>
+							</div>
+						</div>
+
+						<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">
+							<Button
+								className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs"
+								onClick={closeDeleteModal}>
+								Cancel
+							</Button>
+							<Button
+								className="bg-secondary-1  text-dark-1 font-inter text-xs"
+								onClick={() => {
+									closeDeleteModal();
+								}}>
+								Download Invoice
+							</Button>
+						</div>
 					</div>
 				</Modal>
 			)}

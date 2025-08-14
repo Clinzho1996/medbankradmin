@@ -86,16 +86,7 @@ export function EndUserDataTable<TData, TValue>({
 
 	const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
-	// State for form inputs
-	const [firstName, setFirstName] = useState("");
-	const [lastName, setLastName] = useState("");
-	const [email, setEmail] = useState("");
-	const [staffId, setStaffId] = useState("");
-	const [role, setRole] = useState("super_admin");
-
-	const openModal = () => setModalOpen(true);
-	const closeModal = () => setModalOpen(false);
-
+	
 	// Sync `tableData` with `data` prop
 	useEffect(() => {
 		setTableData(data);

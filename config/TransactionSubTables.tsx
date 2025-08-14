@@ -14,9 +14,9 @@ import {
 	VisibilityState,
 } from "@tanstack/react-table";
 
-import { Button } from "@/components/ui/button";
-
 import Modal from "@/components/Modal";
+import { Button } from "@/components/ui/button";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
@@ -34,6 +34,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { IconFileExport } from "@tabler/icons-react";
 import {
 	ChevronLeft,
 	ChevronRight,
@@ -41,7 +42,9 @@ import {
 	ChevronsRight,
 } from "lucide-react";
 import Image from "next/image";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { DateRange } from "react-day-picker";
+import * as XLSX from "xlsx";
 
 interface TransactionTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
@@ -58,23 +61,84 @@ export function TransactionSubTables<TData, TValue>({
 	);
 	const [columnVisibility, setColumnVisibility] =
 		React.useState<VisibilityState>({});
+	const [selectedStatus, setSelectedStatus] = useState<string>("View All");
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 	const [globalFilter, setGlobalFilter] = useState("");
 	const [isModalOpen, setModalOpen] = useState(false);
 	const [tableData, setTableData] = useState(data);
-
+	const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 	const openModal = () => setModalOpen(true);
 	const closeModal = () => setModalOpen(false);
 
-	const handleDelete = () => {
-		const selectedRowIds = Object.keys(rowSelection).filter(
-			(key) => rowSelection[key]
-		);
-		const filteredData = tableData.filter(
-			(_, index) => !selectedRowIds.includes(index.toString())
-		);
+	const filterDataByDateRange = () => {
+		if (!dateRange?.from || !dateRange?.to) {
+			setTableData(data); // Reset to all data
+			return;
+		}
+
+		const filteredData = data.filter((farmer: any) => {
+			const dateJoined = new Date(farmer.date);
+			return dateJoined >= dateRange.from! && dateJoined <= dateRange.to!;
+		});
+
 		setTableData(filteredData);
-		setRowSelection({});
+	};
+
+	useEffect(() => {
+		filterDataByDateRange();
+	}, [dateRange]);
+
+	const handleStatusFilter = (status: string) => {
+		setSelectedStatus(status);
+
+		if (status === "View All") {
+			setTableData(data); // Reset to all data
+		} else {
+			const filteredData = data?.filter(
+				(farmer) =>
+					(farmer as any)?.status?.toLowerCase() === status.toLowerCase()
+			);
+
+			setTableData(filteredData as TData[]);
+		}
+	};
+
+	const handleExport = () => {
+		// Convert the table data to a worksheet
+		const worksheet = XLSX.utils.json_to_sheet(tableData);
+
+		// Create a new workbook and add the worksheet
+		const workbook = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(workbook, worksheet, "Farmers");
+
+		// Generate a binary string from the workbook
+		const binaryString = XLSX.write(workbook, {
+			bookType: "xlsx",
+			type: "binary",
+		});
+
+		// Convert the binary string to a Blob
+		const blob = new Blob([s2ab(binaryString)], {
+			type: "application/octet-stream",
+		});
+
+		// Create a link element and trigger the download
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement("a");
+		link.href = url;
+		link.download = "staffs.xlsx";
+		link.click();
+
+		// Clean up
+		URL.revokeObjectURL(url);
+	};
+
+	// Utility function to convert string to ArrayBuffer
+	const s2ab = (s: string) => {
+		const buf = new ArrayBuffer(s.length);
+		const view = new Uint8Array(buf);
+		for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xff;
+		return buf;
 	};
 
 	const table = useReactTable({
@@ -154,22 +218,51 @@ export function TransactionSubTables<TData, TValue>({
 			</Modal>
 
 			<div
-				className="bg-white flex flex-row border-b-[0px] border-[#E2E4E9] justify-between items-center p-3"
+				className="bg-white flex flex-col border-b-[0px] border-[#E2E4E9] justify-start items-start p-3"
 				style={{
 					borderTopLeftRadius: "0.5rem",
 					borderTopRightRadius: "0.5rem",
 				}}>
-				<div>
-					<div className="flex flex-row justify-start items-center gap-2">
-						<Image
-							src="/images/info.png"
-							alt="staff management"
-							height={20}
-							width={20}
-						/>
-						<p className="text-sm text-dark-1 font-medium font-inter">
-							Transactions
-						</p>
+				{" "}
+				<div className="flex flex-row justify-start items-center gap-2 border-b w-full py-2">
+					<Image
+						src="/images/info.png"
+						alt="staff management"
+						height={20}
+						width={20}
+					/>
+					<p className="text-sm text-dark-1 font-medium font-inter">
+						Transaction Management
+					</p>
+				</div>
+				<div className="p-3 flex flex-row justify-between border-b-[1px] border-[#E2E4E9] bg-white items-center gap-20 w-full ">
+					<div className="flex flex-row justify-start bg-white items-center rounded-lg mx-auto special-btn-farmer w-full pr-2">
+						{["View All", "Completed", "Failed", "Pending"].map(
+							(status, index, arr) => (
+								<p
+									key={status}
+									className={`px-4 py-2 text-center text-sm cursor-pointer border border-[#E2E4E9] overflow-hidden ${
+										selectedStatus === status
+											? "bg-primary-5 text-dark-1"
+											: "text-dark-1"
+									} 
+			${index === 0 ? "rounded-l-lg firstRound" : ""} 
+			${index === arr.length - 1 ? "rounded-r-lg lastRound" : ""}`}
+									onClick={() => handleStatusFilter(status)}>
+									{status}
+								</p>
+							)
+						)}
+					</div>
+					<div className="p-3 flex flex-row justify-end items-center gap-3 w-full ">
+						<div className="w-[250px]">
+							<DateRangePicker dateRange={dateRange} onSelect={setDateRange} />
+						</div>
+						<Button
+							className="bg-secondary-1 border-[1px] border-[#173C3D] text-primary-1 font-inter cborder"
+							onClick={handleExport}>
+							<IconFileExport /> Export Data
+						</Button>
 					</div>
 				</div>
 			</div>
