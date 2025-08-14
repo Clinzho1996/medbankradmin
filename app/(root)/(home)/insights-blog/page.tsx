@@ -6,12 +6,7 @@ import Image from "next/image";
 import { useState } from "react";
 
 function Learn() {
-	const [isAddPostModalOpen, setAddPostModalOpen] = useState(false);
 	const [refreshKey, setRefreshKey] = useState(0);
-
-	const handlePostAdded = () => {
-		setRefreshKey((prevKey) => prevKey + 1); // Refresh the table
-	};
 
 	return (
 		<div>

@@ -145,22 +145,30 @@ const DocumentTable = () => {
 			),
 		},
 		{
+			accessorKey: "id",
+			header: "ID",
+			cell: ({ row }) => {
+				const id = row.getValue<string>("id");
+
+				return <span className="text-xs text-primary-6">{id}</span>;
+			},
+		},
+		{
 			accessorKey: "name",
-			header: "Sender",
+			header: "Folder Name",
 			cell: ({ row }) => {
 				if (!row) return null; // or return a placeholder
-				const name = row.getValue<string>("name") || "N/A";
-				const email = row.getValue<string>("email") || "N/A";
+				const email = row.getValue<string>("email") || "Lab Results";
 				return (
 					<div className="flex flex-row justify-start items-center gap-2">
 						<Image
-							src="/images/avatar.png"
-							alt={name}
+							src="/images/fold2.png"
+							alt={email}
 							width={30}
 							height={30}
-							className="w-8 h-8 rounded-full"
+							className="w-8 h-8 rounded-md"
 						/>
-						<span className="text-xs text-primary-6">{name}</span>
+						<span className="text-xs text-primary-6">{email}</span>
 					</div>
 				);
 			},

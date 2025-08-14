@@ -168,15 +168,7 @@ export function DocumentDataTables<TData, TValue>({
 				}}>
 				<div className="p-3 flex flex-row justify-between border-b-[1px] border-[#E2E4E9] bg-white items-center gap-20 w-full rounded-lg">
 					<div className="flex flex-row justify-start bg-white items-center rounded-lg mx-auto  w-full pr-2">
-						{[
-							"All",
-							"Active",
-							"Completed",
-							"Rescheduled",
-							"Cancelled",
-							"Refunded",
-							"Transferred",
-						].map((status, index, arr) => (
+						{["All", "Active", "Inactive"].map((status, index, arr) => (
 							<p
 								key={status}
 								className={`px-4 py-2 text-center text-sm cursor-pointer border border-[#E2E4E9] overflow-hidden ${
