@@ -3,11 +3,9 @@
 import Profile from "@/components/booking/Profile";
 import HeaderBox from "@/components/HeaderBox";
 import Loader from "@/components/Loader";
-import StatCard from "@/components/StatCard";
 import { IconArrowBack, IconCaretRightFilled } from "@tabler/icons-react";
 import axios from "axios";
 import { getSession } from "next-auth/react";
-import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -91,56 +89,21 @@ function BookingDetails() {
 	}
 	return (
 		<div>
-			<HeaderBox title="User Management" />
+			<HeaderBox title="Booking Handling Management" />
 			<div className="flex flex-row justify-start items-center gap-2 mb-4 p-3 bg-[#F4F6F8] border-b border-[#6C72781A] m-0">
 				<Link
-					href="/end-user"
+					href="/booking-handling"
 					className="flex flex-row text-[#6B7280] justify-start text-sm items-center gap-2">
 					<IconArrowBack /> Back to previous page
 				</Link>
 				<IconCaretRightFilled size={18} />
 				<p className="text-sm text-[#161616] font-normal ">
-					Detailed profile view for {userData?.first_name} {userData?.last_name}
+					Detailed Profile View for BKG-001234 {userData?.first_name}{" "}
+					{userData?.last_name}
 				</p>
 			</div>
-			<div className="flex flex-col sm:flex-row justify-between items-start px-4 py-2 gap-2 w-full max-w-[100vw]">
-				<div className="border-[1px] border-[#E2E4E9] rounded-lg w-full bg-white overflow-hidden p-3 flex flex-col gap-3">
-					<div className="flex flex-row justify-start gap-2 items-center">
-						<Image src="/images/info.png" alt="info" width={20} height={20} />
-						<p className="text-sm font-medium text-black">Account Metrics</p>
-					</div>
 
-					<div className="flex flex-row justify-start items-center w-full gap-3">
-						<StatCard
-							title="Total Login"
-							value={45678}
-							percentage="36%"
-							positive
-						/>
-
-						<StatCard
-							title="Document Uploaded"
-							value={3456}
-							percentage="24%"
-							positive={false}
-						/>
-						<StatCard
-							title="Symptoms Check Completed"
-							value={12345}
-							percentage="18%"
-							positive
-						/>
-						<StatCard
-							title="Medication Tracked"
-							value={12345}
-							percentage="18%"
-							positive
-						/>
-					</div>
-				</div>
-			</div>
-
-			<div className="border-[1px] border-[#E2E4E9] px-4 py-2 mx-auto rounded-lg w-full sm:w-[97.5%] bg-white overflow-hidden p-3 flex flex-col gap-3">
+			<div className="mx-auto rounded-lg w-full sm:w-[97.5%] bg-white overflow-hidden p-3 flex flex-col gap-3">
 				<Profile />
 			</div>
 		</div>
