@@ -3,10 +3,7 @@
 import HeaderBox from "@/components/HeaderBox";
 import StatCard from "@/components/StatCard";
 import TransactionTableComponent from "@/config/transaction-columns";
-import axios from "axios";
-import { getSession } from "next-auth/react";
 import Image from "next/image";
-import { useEffect, useState } from "react";
 
 interface CardData {
 	amount: number;
@@ -22,94 +19,6 @@ interface MonthlyIncomeResponse {
 }
 
 function Transactions() {
-	const [isLoading, setIsLoading] = useState(true);
-	const [totalTransactions, setTotalTransactions] = useState<CardData>({
-		amount: 0,
-		difference: 0,
-	});
-	const [monthlyIncome, setMonthlyIncome] = useState<CardData>({
-		amount: 0,
-		difference: 0,
-	});
-	const [monthlySpending, setMonthlySpending] = useState<CardData>({
-		amount: 0,
-		difference: 0,
-	});
-
-	const fetchCardData = async () => {
-		try {
-			setIsLoading(true);
-			const session = await getSession();
-
-			if (!session?.accessToken) {
-				console.error("No access token found.");
-				setIsLoading(false);
-				return;
-			}
-
-			// Fetch all data in parallel
-			const [transactionsRes, incomeRes, spendingRes] = await Promise.all([
-				axios.get(
-					"https://api.kuditrak.ng/api/v1/analytics/total-transactions",
-					{
-						headers: {
-							Accept: "application/json",
-							Authorization: `Bearer ${session.accessToken}`,
-						},
-					}
-				),
-				axios.get<{ status: string; data: MonthlyIncomeResponse }>(
-					"https://api.kuditrak.ng/api/v1/analytics/monthly-income-comparison",
-					{
-						headers: {
-							Accept: "application/json",
-							Authorization: `Bearer ${session.accessToken}`,
-						},
-					}
-				),
-				axios.get(
-					"https://api.kuditrak.ng/api/v1/analytics/monthly-spending-comparison",
-					{
-						headers: {
-							Accept: "application/json",
-							Authorization: `Bearer ${session.accessToken}`,
-						},
-					}
-				),
-			]);
-
-			// Set data for each card
-			if (transactionsRes.data.status === "success") {
-				setTotalTransactions({
-					amount: transactionsRes.data.data.total_transactions || 0,
-					difference: transactionsRes.data.data.percentage_change || 0,
-				});
-			}
-
-			if (incomeRes.data.status === "success") {
-				setMonthlyIncome({
-					amount: incomeRes.data.data.current_month_income || 0,
-					difference: parseFloat(incomeRes.data.data.percentage_change) || 0,
-				});
-			}
-
-			if (spendingRes.data.status === "success") {
-				setMonthlySpending({
-					amount: spendingRes.data.data.current_month_spending || 0,
-					difference: parseFloat(spendingRes.data.data.percentage_change) || 0,
-				});
-			}
-		} catch (error) {
-			console.error("Error fetching card data:", error);
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	useEffect(() => {
-		fetchCardData();
-	}, []);
-
 	return (
 		<div>
 			<HeaderBox title="Transactions" />
