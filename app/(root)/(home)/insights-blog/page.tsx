@@ -1,10 +1,7 @@
 "use client";
 
-import AddPostModal from "@/components/AddPostModal";
 import HeaderBox from "@/components/HeaderBox";
-import { Button } from "@/components/ui/button";
 import PostTableComponent from "@/config/post-columns";
-import { IconPlus } from "@tabler/icons-react";
 import Image from "next/image";
 import { useState } from "react";
 
@@ -26,25 +23,8 @@ function Learn() {
 			</p>
 			<div className="bg-[#F6F8FA] flex flex-col px-4 py-2 gap-4">
 				<div className="bg-white flex flex-col border-b-[1px] border-[#E2E4E9] justify-between p-3 rounded-lg">
-					<div className="flex flex-row justify-between items-center gap-4">
-						<div className="flex flex-row justify-end items-end gap-3 font-inter w-full">
-							<Button
-								className="bg-secondary-1 text-dark cborder font-sequel"
-								onClick={() => setAddPostModalOpen(true)}>
-								<IconPlus />
-								Create Post
-							</Button>
-
-							<AddPostModal
-								isOpen={isAddPostModalOpen}
-								onClose={() => setAddPostModalOpen(false)}
-								onPostAdded={handlePostAdded}
-							/>
-						</div>
-					</div>
-
 					<Image
-						src="/images/post.png"
+						src="/images/post2.png"
 						alt="post"
 						width={800}
 						height={180}

@@ -15,9 +15,7 @@ import {
 } from "@tanstack/react-table";
 
 import { Button } from "@/components/ui/button";
-
-import AddPostModal from "@/components/AddPostModal";
-import { Input } from "@/components/ui/input";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import {
 	Select,
 	SelectContent,
@@ -33,24 +31,26 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { IconPlus, IconTrash } from "@tabler/icons-react";
+import { IconFileExport } from "@tabler/icons-react";
 import {
 	ChevronLeft,
 	ChevronRight,
 	ChevronsLeft,
 	ChevronsRight,
 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { DateRange } from "react-day-picker";
+import * as XLSX from "xlsx";
 
-interface PostTableProps<TData, TValue> {
+interface TransactionTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
 }
 
-export function PostTable<TData, TValue>({
+export function DocumentDataTables<TData, TValue>({
 	columns,
 	data,
-}: PostTableProps<TData, TValue>) {
+}: TransactionTableProps<TData, TValue>) {
 	const [sorting, setSorting] = React.useState<SortingState>([]);
 	const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
 		[]
@@ -60,26 +60,29 @@ export function PostTable<TData, TValue>({
 	const [selectedStatus, setSelectedStatus] = useState<string>("View All");
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 	const [globalFilter, setGlobalFilter] = useState("");
-
+	const [isModalOpen, setModalOpen] = useState(false);
 	const [tableData, setTableData] = useState(data);
-	const [isAddPostModalOpen, setAddPostModalOpen] = useState(false);
-	const [refreshKey, setRefreshKey] = useState(0);
+	const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+	const openModal = () => setModalOpen(true);
+	const closeModal = () => setModalOpen(false);
 
-	const handlePostAdded = () => {
-		// Refresh the table
-		setRefreshKey((prevKey) => prevKey + 1);
-	};
+	const filterDataByDateRange = () => {
+		if (!dateRange?.from || !dateRange?.to) {
+			setTableData(data); // Reset to all data
+			return;
+		}
 
-	const handleDelete = () => {
-		const selectedRowIds = Object.keys(rowSelection).filter(
-			(key) => rowSelection[key]
-		);
-		const filteredData = tableData.filter(
-			(_, index) => !selectedRowIds.includes(index.toString())
-		);
+		const filteredData = data.filter((farmer: any) => {
+			const dateJoined = new Date(farmer.date);
+			return dateJoined >= dateRange.from! && dateJoined <= dateRange.to!;
+		});
+
 		setTableData(filteredData);
-		setRowSelection({});
 	};
+
+	useEffect(() => {
+		filterDataByDateRange();
+	}, [dateRange]);
 
 	const handleStatusFilter = (status: string) => {
 		setSelectedStatus(status);
@@ -95,6 +98,45 @@ export function PostTable<TData, TValue>({
 			setTableData(filteredData as TData[]);
 		}
 	};
+
+	const handleExport = () => {
+		// Convert the table data to a worksheet
+		const worksheet = XLSX.utils.json_to_sheet(tableData);
+
+		// Create a new workbook and add the worksheet
+		const workbook = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(workbook, worksheet, "Farmers");
+
+		// Generate a binary string from the workbook
+		const binaryString = XLSX.write(workbook, {
+			bookType: "xlsx",
+			type: "binary",
+		});
+
+		// Convert the binary string to a Blob
+		const blob = new Blob([s2ab(binaryString)], {
+			type: "application/octet-stream",
+		});
+
+		// Create a link element and trigger the download
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement("a");
+		link.href = url;
+		link.download = "staffs.xlsx";
+		link.click();
+
+		// Clean up
+		URL.revokeObjectURL(url);
+	};
+
+	// Utility function to convert string to ArrayBuffer
+	const s2ab = (s: string) => {
+		const buf = new ArrayBuffer(s.length);
+		const view = new Uint8Array(buf);
+		for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xff;
+		return buf;
+	};
+
 	const table = useReactTable({
 		data,
 		columns,
@@ -118,49 +160,50 @@ export function PostTable<TData, TValue>({
 
 	return (
 		<div className="rounded-lg border-[1px] py-0">
-			<div className="flex flex-row justify-between items-center w-full border-b-[1px] bg-white  border-[#E2E4E9] p-3 rounded-lg">
-				<div className="flex flex-row justify-start items-center rounded-lg w-full special-btn-farmer pr-2">
-					{["View All", "Published", "Draft"].map((status, index, arr) => (
-						<p
-							key={status}
-							className={`px-4 py-2 text-center text-sm cursor-pointer border border-[#E2E4E9] overflow-hidden ${
-								selectedStatus === status
-									? "bg-primary-5 text-dark-1"
-									: "text-dark-1"
-							} 
+			<div
+				className="bg-white flex flex-col border-b-[0px] border-[#E2E4E9] justify-start items-start rounded-lg"
+				style={{
+					borderTopLeftRadius: "0.5rem",
+					borderTopRightRadius: "0.5rem",
+				}}>
+				<div className="p-3 flex flex-row justify-between border-b-[1px] border-[#E2E4E9] bg-white items-center gap-20 w-full rounded-lg">
+					<div className="flex flex-row justify-start bg-white items-center rounded-lg mx-auto  w-full pr-2">
+						{[
+							"All",
+							"Active",
+							"Completed",
+							"Rescheduled",
+							"Cancelled",
+							"Refunded",
+							"Transferred",
+						].map((status, index, arr) => (
+							<p
+								key={status}
+								className={`px-4 py-2 text-center text-sm cursor-pointer border border-[#E2E4E9] overflow-hidden ${
+									selectedStatus === status
+										? "bg-primary-5 text-dark-1"
+										: "text-dark-1"
+								} 
 			${index === 0 ? "rounded-l-lg firstRound" : ""} 
 			${index === arr.length - 1 ? "rounded-r-lg lastRound" : ""}`}
-							onClick={() => handleStatusFilter(status)}>
-							{status}
-						</p>
-					))}
-				</div>
-				<div className="p-3 flex flex-row justify-end  items-center gap-3 w-full">
-					<Input
-						className="bg-[#F9FAFB] border-[#E8E8E8] border-[1px] w-full  input"
-						placeholder="Search by title or content..."
-						value={globalFilter}
-						onChange={(e) => setGlobalFilter(e.target.value)}
-					/>
-					<Button
-						className="border-[#E8E8E8] border-[1px]"
-						onClick={handleDelete}>
-						<IconTrash /> Delete
-					</Button>
-					<Button
-						className="bg-secondary-1 text-dark cborder font-sequel"
-						onClick={() => setAddPostModalOpen(true)}>
-						<IconPlus />
-						Create Post
-					</Button>
-
-					<AddPostModal
-						isOpen={isAddPostModalOpen}
-						onClose={() => setAddPostModalOpen(false)}
-						onPostAdded={handlePostAdded}
-					/>
+								onClick={() => handleStatusFilter(status)}>
+								{status}
+							</p>
+						))}
+					</div>
+					<div className="p-3 flex flex-row justify-end items-center gap-3 w-full ">
+						<div className="w-[250px]">
+							<DateRangePicker dateRange={dateRange} onSelect={setDateRange} />
+						</div>
+						<Button
+							className="bg-secondary-1 border-[1px] border-[#173C3D] text-primary-1 font-inter cborder"
+							onClick={handleExport}>
+							<IconFileExport /> Export Data
+						</Button>
+					</div>
 				</div>
 			</div>
+
 			<Table>
 				<TableHeader>
 					{table.getHeaderGroups().map((headerGroup) => (
