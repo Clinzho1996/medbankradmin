@@ -5,19 +5,6 @@ import StatCard from "@/components/StatCard";
 import BookingTableComponent from "@/config/booking-columns";
 import Image from "next/image";
 
-interface CardData {
-	amount: number;
-	difference: number;
-}
-
-interface MonthlyIncomeResponse {
-	current_month_income: number;
-	previous_month_income: number;
-	difference: number;
-	type: string;
-	percentage_change: string;
-}
-
 function BookingHandling() {
 	return (
 		<div>
