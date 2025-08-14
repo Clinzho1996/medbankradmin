@@ -66,7 +66,7 @@ function Profile() {
 								</div>
 
 								<div className="flex flex-col gap-2 w-full sm:w-[25%]">
-									<p className="text-xs text-[#6B7280]">Fertility Name</p>
+									<p className="text-xs text-[#6B7280]">Provider Name</p>
 									<p className="text-sm text-dark-1">SmartDNA</p>
 								</div>
 
@@ -139,7 +139,7 @@ function Profile() {
 								</div>
 
 								<div className="flex flex-col gap-2 w-full sm:w-[25%]">
-									<p className="text-xs text-[#6B7280]">Fertility Name</p>
+									<p className="text-xs text-[#6B7280]">Provider Name</p>
 									<p className="text-sm text-dark-1">SmartDNA</p>
 								</div>
 							</div>

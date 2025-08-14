@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { IconArrowRight } from "@tabler/icons-react";
@@ -159,10 +158,11 @@ const HealthVault = () => {
 														height={40}
 													/>
 												) : (
-													<img
-														src={file.preview}
-														alt={file.name}
-														className="object-cover w-full h-full"
+													<Image
+														src="/images/pdfs.png"
+														alt="PDF Icon"
+														width={40}
+														height={40}
 													/>
 												)}
 											</div>
@@ -178,11 +178,6 @@ const HealthVault = () => {
 													<span>{file.size}</span>
 												</div>
 											</div>
-
-											{/* View Button */}
-											<Button variant="outline" size="sm" className="ml-4">
-												View
-											</Button>
 										</Card>
 									))}
 								</div>

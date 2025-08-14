@@ -3,12 +3,12 @@
 import { ColumnDef, RowSelectionState } from "@tanstack/react-table";
 
 import Loader from "@/components/Loader";
+import Modal from "@/components/Modal";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import axios from "axios";
 import { getSession } from "next-auth/react";
 import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { DocumentDataTables } from "./document-table";
 
@@ -271,11 +271,11 @@ const DocumentTable = () => {
 
 				return (
 					<div className="flex flex-row justify-start items-center gap-5">
-						<Link href={`/booking-handling/${actions.id}`}>
-							<Button className="border-[#E8E8E8] border-[1px] text-sm font-medium text-[#6B7280] font-inter">
-								View Details
-							</Button>
-						</Link>
+						<Button
+							className="border-[#E8E8E8] border-[1px] text-sm font-medium text-[#6B7280] font-inter"
+							onClick={() => openDeleteModal(row)}>
+							View Details
+						</Button>
 					</div>
 				);
 			},
@@ -288,6 +288,98 @@ const DocumentTable = () => {
 				<Loader />
 			) : (
 				<DocumentDataTables columns={columns} data={tableData} />
+			)}
+
+			{isDeleteModalOpen && (
+				<Modal onClose={closeDeleteModal} isOpen={isDeleteModalOpen}>
+					<div className="flex flex-col gap-4 w-full sm:w-[500px]">
+						<div className="border-y p-3">
+							<p className="text-xs text-[#6C7278]">AMOUNT</p>
+
+							<div className="flex flex-row justify-start items-center gap-4">
+								<span className=" text-dark-1 text-sm">
+									₦{selectedRow?.amount}
+								</span>
+								<span className="status green">{selectedRow?.status}</span>
+							</div>
+						</div>
+
+						<div className="border-b pb-3 px-3 flex flex-row justify-start items-center gap-10">
+							<div className="flex flex-col justify-start gap-1">
+								<p className="text-xs text-[#6C7278]">Transaction ID</p>
+								<span className=" text-dark-1 text-sm">
+									{selectedRow?.id.length > 10
+										? selectedRow?.id.slice(0, 10) + "..."
+										: selectedRow?.id}
+								</span>
+							</div>
+							<p className="text-xs text-[#6C7278]">|</p>
+							<div className="flex flex-col justify-start gap-1">
+								<p className="text-xs text-[#6C7278]">Transaction Date</p>
+								<span className=" text-dark-1 text-sm">
+									{selectedRow?.created}
+								</span>
+							</div>
+						</div>
+
+						<div className="border-b pb-3 px-3 flex flex-row justify-start items-center gap-10 shadow-lg">
+							<div className="flex flex-col justify-start gap-1">
+								<p className="text-dark-1 text-xs ">Transaction Details</p>
+							</div>
+						</div>
+
+						<div className="border border-secondary-1 rounded-lg p-3 flex flex-col gap-4 shadow-lg shadow-[#E4E5E73D]">
+							<div className="flex flex-row justify-between items-center">
+								<p className="text-xs text-[#6C7278]">Sender ID</p>
+								<p className="text-sm text-dark-1">{selectedRow?.id}</p>
+							</div>
+
+							<div className="flex flex-row justify-between items-center">
+								<p className="text-xs text-[#6C7278]">Sender Name</p>
+								<p className="text-sm text-dark-1">{selectedRow?.name}</p>
+							</div>
+
+							<div className="flex flex-row justify-between items-center">
+								<p className="text-xs text-[#6C7278]">Sender Email</p>
+								<p className="text-sm text-dark-1">
+									{selectedRow?.email}{" "}
+									<span className="text-xs text-[#6C7278]">Not Provided</span>
+								</p>
+							</div>
+							<div className="flex flex-row justify-between items-center">
+								<p className="text-xs text-[#6C7278]">Type</p>
+								<p className="text-sm text-dark-1">{selectedRow?.narration}</p>
+							</div>
+
+							<div className="flex flex-row justify-between items-center">
+								<p className="text-xs text-[#6C7278]">Description</p>
+								<p className="text-sm text-dark-1">
+									Premium Individual - Monthly
+								</p>
+							</div>
+
+							<div className="flex flex-row justify-between items-center">
+								<p className="text-xs text-[#6C7278]">Payment Method</p>
+								<p className="text-sm text-dark-1">Debit Card</p>
+							</div>
+						</div>
+
+						<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">
+							<Button
+								className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs"
+								onClick={closeDeleteModal}>
+								Cancel
+							</Button>
+							<Button
+								className="bg-secondary-1  text-dark-1 font-inter text-xs"
+								onClick={() => {
+									closeDeleteModal();
+								}}>
+								Edit
+							</Button>
+						</div>
+					</div>
+				</Modal>
 			)}
 		</>
 	);
