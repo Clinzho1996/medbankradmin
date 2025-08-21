@@ -18,7 +18,6 @@ import {
 import { IconTrash } from "@tabler/icons-react";
 import axios from "axios";
 import { getSession } from "next-auth/react";
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
@@ -356,35 +355,27 @@ const LabTable = () => {
 			cell: ({ row }) => {
 				const staff = row.getValue<string>("id");
 
-				return <span className="text-xs text-primary-6">{staff}</span>;
-			},
-		},
-		{
-			accessorKey: "name",
-			header: "Full Name",
-			cell: ({ row }) => {
-				if (!row) return null; // or return a placeholder
-				const name = row.getValue<string>("name") || "N/A";
-				const email = row.getValue<string>("email") || "N/A";
 				return (
-					<div className="flex flex-row justify-start items-center gap-2">
-						<Image
-							src="/images/avatar.png"
-							alt={name}
-							width={30}
-							height={30}
-							className="w-8 h-8 rounded-full"
-						/>
-						<span className="text-xs text-primary-6">{name}</span>
-					</div>
+					<span className="text-xs text-primary-6">
+						{staff.length > 10 ? `${staff.slice(0, 10)}...` : staff}
+					</span>
 				);
 			},
 		},
 		{
-			accessorKey: "email",
-			header: "Email",
+			accessorKey: "name",
+			header: "Laboratory Name",
 			cell: ({ row }) => {
-				const email = row.getValue<string>("email");
+				if (!row) return null; // or return a placeholder
+				const name = row.getValue<string>("lab") || "SmartDNA";
+				return <span className="text-xs text-primary-6">{name}</span>;
+			},
+		},
+		{
+			accessorKey: "email",
+			header: "Specialization",
+			cell: ({ row }) => {
+				const email = row.getValue<string>("spec") || "Medical Tourism";
 
 				return <span className="text-xs text-primary-6">{email}</span>;
 			},
@@ -415,6 +406,15 @@ const LabTable = () => {
 			},
 		},
 		{
+			accessorKey: "date",
+			header: "Sign up Date",
+			cell: ({ row }) => {
+				const date = row.getValue<string>("date") || "N/A";
+
+				return <span className="text-xs text-primary-6">{date}</span>;
+			},
+		},
+		{
 			id: "actions",
 			header: "Action",
 			cell: ({ row }) => {
@@ -422,7 +422,7 @@ const LabTable = () => {
 
 				return (
 					<div className="flex flex-row justify-start items-center gap-3">
-						<Link href={`/end-user/${actions.id}`}>
+						<Link href={`/health-care-providers/lab/${actions.id}`}>
 							<Button className="border border-[#E8E8E8]">View Details</Button>
 						</Link>
 
