@@ -1,7 +1,10 @@
 import HeaderBox from "@/components/HeaderBox";
+
 import StatCard from "@/components/StatCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs";
 import Image from "next/image";
+import Hospital from "./hospital/page";
+import Laboratory from "./lab/page";
 
 function HealthCare() {
 	return (
@@ -50,21 +53,23 @@ function HealthCare() {
 					<TabsList className="flex flex-row h-fit justify-between bg-[#fff] w-full sm:w-[98%] mx-auto border-[1px] border-[#E2E4E9] rounded-lg">
 						<TabsTrigger
 							value="hospital"
-							className="flex-1 p-2 rounded-md data-[state=active]:bg-[#ECFAF6] data-[state=active]:text-primary-6 text-sm text-center">
+							className="flex-1 p-2 rounded-md data-[state=active]:bg-[#ECFAF6] data-[state=active]:text-black text-sm text-center text-primary-6">
 							Hospital Provider
 						</TabsTrigger>
 						<div className="w-px bg-[#E2E4E9] my-2"></div>
 						<TabsTrigger
 							value="laboratory"
-							className="flex-1 p-2 rounded-md data-[state=active]:bg-[#ECFAF6] data-[state=active]:text-primary-6 text-sm text-center">
+							className="flex-1 p-2 rounded-md data-[state=active]:bg-[#ECFAF6] data-[state=active]:text-black text-sm text-center text-primary-6">
 							Laboratory Test Provider
 						</TabsTrigger>
 					</TabsList>
 
 					<div className="w-full px-4 mt-[10px] lg:mt-0">
-						<TabsContent value="hospital">Hospital Provider</TabsContent>
+						<TabsContent value="hospital">
+							<Hospital />
+						</TabsContent>
 						<TabsContent value="laboratory">
-							Laboratory Test Provider
+							<Laboratory />
 						</TabsContent>
 					</div>
 				</Tabs>
