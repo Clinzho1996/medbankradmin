@@ -15,7 +15,7 @@ const StatCard: React.FC<StatCardProps> = ({
 	positive = true,
 }) => {
 	return (
-		<div className="rounded-xl border border-gray-200 p-4 flex justify-between items-end max-w-sm bg-white shadow-sm w-full">
+		<div className="rounded-xl border border-gray-200 p-4 flex justify-between items-end  bg-white shadow-sm w-full">
 			<div>
 				<p className="text-xs text-gray-500 font-medium">
 					{title.toUpperCase()}
