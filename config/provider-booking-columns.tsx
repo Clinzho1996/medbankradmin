@@ -11,7 +11,7 @@ import { getSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { BookingDataTables } from "./booking-table";
+import { ProviderBookingDataTables } from "./provider-booking-table";
 
 interface ApiResponse {
 	data: {
@@ -40,7 +40,7 @@ declare module "next-auth" {
 	}
 }
 
-const BookingTableComponent = () => {
+const ProviderBookingTableComponent = () => {
 	const [isLoading, setIsLoading] = useState<boolean>(false);
 	const [tableData, setTableData] = useState<Transaction[]>([]);
 	const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -263,10 +263,10 @@ const BookingTableComponent = () => {
 			{isLoading ? (
 				<Loader />
 			) : (
-				<BookingDataTables columns={columns} data={tableData} />
+				<ProviderBookingDataTables columns={columns} data={tableData} />
 			)}
 		</>
 	);
 };
 
-export default BookingTableComponent;
+export default ProviderBookingTableComponent;

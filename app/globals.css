@@ -231,6 +231,8 @@ body {
 
 .modal {
 	width: 650px;
+	max-height: 90vh;
+	overflow-y: auto;
 }
 @layer utilities {
 	.flex-center {

@@ -15,7 +15,11 @@ import {
 } from "@tanstack/react-table";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
 
+import Modal from "@/components/Modal";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import {
 	Select,
@@ -32,7 +36,12 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { IconFileExport, IconPlus, IconTrash } from "@tabler/icons-react";
+import {
+	IconFileExport,
+	IconPlus,
+	IconTrash,
+	IconX,
+} from "@tabler/icons-react";
 import axios from "axios";
 import {
 	ChevronLeft,
@@ -41,7 +50,7 @@ import {
 	ChevronsRight,
 } from "lucide-react";
 import { getSession } from "next-auth/react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
@@ -66,6 +75,34 @@ interface ApiResponse {
 	status?: string;
 }
 
+interface HealthProviderFormData {
+	// Step 1
+	image: File | null;
+	imagePreview: string | null;
+	healthProviderName: string;
+	providerType: "hospital" | "laboratory";
+	specialization: string;
+	description: string;
+	officeEmail: string;
+	services: string[];
+	addresses: Array<{
+		street: string;
+		city: string;
+		state: string;
+		country: string;
+	}>;
+
+	// Step 2
+	consultationFee: string;
+	coverages: string[];
+	licenseNumber: string;
+	accreditationBody: string;
+	expiryDate: string;
+	certificationNumber: string;
+	certificate: File | null;
+	certificatePreview: string | null;
+}
+
 export function HospitalDataTable<TData, TValue>({
 	columns,
 	data,
@@ -81,9 +118,219 @@ export function HospitalDataTable<TData, TValue>({
 	const [globalFilter, setGlobalFilter] = useState("");
 	const [isModalOpen, setModalOpen] = useState(false);
 	const [tableData, setTableData] = useState<TData[]>(data);
-	const [isLoading, setIsLoading] = useState(false);
-
+	const [currentStep, setCurrentStep] = useState(1);
+	const [serviceSearch, setServiceSearch] = useState("");
 	const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+	const [newAddress, setNewAddress] = useState({
+		street: "",
+		city: "",
+		state: "",
+		country: "",
+	});
+	const [coverageInput, setCoverageInput] = useState("");
+
+	const [formData, setFormData] = useState<HealthProviderFormData>({
+		image: null,
+		imagePreview: null,
+		healthProviderName: "",
+		providerType: "hospital",
+		specialization: "",
+		description: "",
+		officeEmail: "",
+		services: [],
+		addresses: [],
+		consultationFee: "",
+		coverages: [],
+		licenseNumber: "",
+		accreditationBody: "",
+		expiryDate: "",
+		certificationNumber: "",
+		certificate: null,
+		certificatePreview: null,
+	});
+
+	const imageInputRef = useRef<HTMLInputElement>(null);
+	const certificateInputRef = useRef<HTMLInputElement>(null);
+
+	const openModal = () => setModalOpen(true);
+	const closeModal = () => {
+		setModalOpen(false);
+		setCurrentStep(1);
+		setFormData({
+			image: null,
+			imagePreview: null,
+			healthProviderName: "",
+			providerType: "hospital",
+			specialization: "",
+			description: "",
+			officeEmail: "",
+			services: [],
+			addresses: [],
+			consultationFee: "",
+			coverages: [],
+			licenseNumber: "",
+			accreditationBody: "",
+			expiryDate: "",
+			certificationNumber: "",
+			certificate: null,
+			certificatePreview: null,
+		});
+		setServiceSearch("");
+		setNewAddress({ street: "", city: "", state: "", country: "" });
+		setCoverageInput("");
+	};
+
+	const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (file) {
+			const preview = URL.createObjectURL(file);
+			setFormData({
+				...formData,
+				image: file,
+				imagePreview: preview,
+			});
+		}
+	};
+
+	const handleCertificateUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (file) {
+			const preview = URL.createObjectURL(file);
+			setFormData({
+				...formData,
+				certificate: file,
+				certificatePreview: preview,
+			});
+		}
+	};
+
+	const removeImage = () => {
+		if (formData.imagePreview) {
+			URL.revokeObjectURL(formData.imagePreview);
+		}
+		setFormData({
+			...formData,
+			image: null,
+			imagePreview: null,
+		});
+	};
+
+	const removeCertificate = () => {
+		if (formData.certificatePreview) {
+			URL.revokeObjectURL(formData.certificatePreview);
+		}
+		setFormData({
+			...formData,
+			certificate: null,
+			certificatePreview: null,
+		});
+	};
+
+	const addService = () => {
+		if (
+			serviceSearch.trim() &&
+			!formData.services.includes(serviceSearch.trim())
+		) {
+			setFormData({
+				...formData,
+				services: [...formData.services, serviceSearch.trim()],
+			});
+			setServiceSearch("");
+		}
+	};
+
+	const removeService = (index: number) => {
+		const newServices = [...formData.services];
+		newServices.splice(index, 1);
+		setFormData({ ...formData, services: newServices });
+	};
+
+	const addAddress = () => {
+		if (
+			newAddress.street &&
+			newAddress.city &&
+			newAddress.state &&
+			newAddress.country
+		) {
+			setFormData({
+				...formData,
+				addresses: [...formData.addresses, { ...newAddress }],
+			});
+			setNewAddress({ street: "", city: "", state: "", country: "" });
+		}
+	};
+
+	const removeAddress = (index: number) => {
+		const newAddresses = [...formData.addresses];
+		newAddresses.splice(index, 1);
+		setFormData({ ...formData, addresses: newAddresses });
+	};
+
+	const addCoverage = () => {
+		if (
+			coverageInput.trim() &&
+			!formData.coverages.includes(coverageInput.trim())
+		) {
+			setFormData({
+				...formData,
+				coverages: [...formData.coverages, coverageInput.trim()],
+			});
+			setCoverageInput("");
+		}
+	};
+
+	const removeCoverage = (index: number) => {
+		const newCoverages = [...formData.coverages];
+		newCoverages.splice(index, 1);
+		setFormData({ ...formData, coverages: newCoverages });
+	};
+
+	const handleInputChange = (
+		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+	) => {
+		const { name, value } = e.target;
+		setFormData({ ...formData, [name]: value });
+	};
+
+	const handleNextStep = () => {
+		setCurrentStep(2);
+	};
+
+	const handlePreviousStep = () => {
+		setCurrentStep(1);
+	};
+
+	const handleSubmit = () => {
+		// Implement form submission logic here
+		console.log("Form data:", formData);
+		toast.success("Health provider added successfully!");
+		closeModal();
+	};
+
+	const handleReset = () => {
+		setFormData({
+			image: null,
+			imagePreview: null,
+			healthProviderName: "",
+			providerType: "hospital",
+			specialization: "",
+			description: "",
+			officeEmail: "",
+			services: [],
+			addresses: [],
+			consultationFee: "",
+			coverages: [],
+			licenseNumber: "",
+			accreditationBody: "",
+			expiryDate: "",
+			certificationNumber: "",
+			certificate: null,
+			certificatePreview: null,
+		});
+		setServiceSearch("");
+		setNewAddress({ street: "", city: "", state: "", country: "" });
+		setCoverageInput("");
+	};
 
 	// Sync `tableData` with `data` prop
 	useEffect(() => {
@@ -242,6 +489,456 @@ export function HospitalDataTable<TData, TValue>({
 
 	return (
 		<div className="rounded-lg border-[1px] py-0">
+			<Modal
+				isOpen={isModalOpen}
+				onClose={closeModal}
+				className="modal "
+				title={`Add Health Provider ${
+					currentStep === 1 ? "(Step 1 of 2)" : "(Step 2 of 2)"
+				}`}>
+				{currentStep === 1 ? (
+					<div className="space-y-4 ">
+						<div className="bg-gray-100 p-4 rounded-lg border border-gray-200">
+							<div className="bg-white p-4 rounded-lg shadow-sm">
+								{/* Column 1: Basic Info */}
+								<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+									{/* Column 1 */}
+									<div className="space-y-4">
+										{/* Image Upload */}
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Health Provider Image
+											</label>
+											<div
+												className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer mt-1"
+												onClick={() => imageInputRef.current?.click()}>
+												{formData.imagePreview ? (
+													<div className="relative">
+														<img
+															src={formData.imagePreview}
+															alt="Preview"
+															className="w-full h-32 object-cover rounded-md"
+														/>
+														<button
+															type="button"
+															className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1"
+															onClick={(e) => {
+																e.stopPropagation();
+																removeImage();
+															}}>
+															<IconX size={16} />
+														</button>
+													</div>
+												) : (
+													<>
+														<div className="text-gray-400 mb-2">
+															<IconPlus size={24} className="mx-auto" />
+														</div>
+														<p className="text-sm text-gray-500">
+															Click to upload image
+														</p>
+														<p className="text-xs text-gray-400">
+															JPEG, PNG (max 10MB)
+														</p>
+													</>
+												)}
+												<input
+													type="file"
+													ref={imageInputRef}
+													className="hidden"
+													onChange={handleImageUpload}
+													accept="image/jpeg,image/png"
+												/>
+											</div>
+										</div>
+
+										{/* Health Provider Name */}
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Health Provider Name
+											</label>
+											<Input
+												name="healthProviderName"
+												value={formData.healthProviderName}
+												onChange={handleInputChange}
+												placeholder="Enter health provider name"
+												className="mt-1"
+											/>
+										</div>
+
+										{/* Provider Type */}
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Provider Type
+											</label>
+											<RadioGroup
+												value={formData.providerType}
+												onValueChange={(value: "hospital" | "laboratory") =>
+													setFormData({ ...formData, providerType: value })
+												}
+												className="flex space-x-4 mt-1">
+												<div className="flex items-center space-x-2">
+													<RadioGroupItem value="hospital" id="hospital" />
+													<label htmlFor="hospital" className="text-sm">
+														Hospital
+													</label>
+												</div>
+												<div className="flex items-center space-x-2">
+													<RadioGroupItem value="laboratory" id="laboratory" />
+													<label htmlFor="laboratory" className="text-sm">
+														Laboratory
+													</label>
+												</div>
+											</RadioGroup>
+										</div>
+
+										{/* Specialization */}
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Specialization
+											</label>
+											<Input
+												name="specialization"
+												value={formData.specialization}
+												onChange={handleInputChange}
+												placeholder="Enter specialization"
+												className="mt-1"
+											/>
+										</div>
+
+										{/* Description */}
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Description
+											</label>
+											<Textarea
+												name="description"
+												value={formData.description}
+												onChange={handleInputChange}
+												placeholder="Enter description"
+												className="mt-1"
+												rows={3}
+											/>
+										</div>
+
+										{/* Office Email */}
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Office Email Address
+											</label>
+											<Input
+												name="officeEmail"
+												type="email"
+												value={formData.officeEmail}
+												onChange={handleInputChange}
+												placeholder="Enter office email"
+												className="mt-1"
+											/>
+										</div>
+									</div>
+
+									{/* Column 2: Services */}
+									<div className="space-y-4">
+										<label className="text-sm font-medium text-gray-700">
+											Services
+										</label>
+										<div className="flex space-x-2">
+											<Input
+												value={serviceSearch}
+												onChange={(e) => setServiceSearch(e.target.value)}
+												placeholder="Search and add services"
+												className="flex-1"
+											/>
+											<Button type="button" onClick={addService}>
+												Add
+											</Button>
+										</div>
+										<div className="space-y-2">
+											{formData.services.map((service, index) => (
+												<div
+													key={index}
+													className="flex items-center justify-between bg-gray-100 px-3 py-2 rounded">
+													<span className="text-sm">{service}</span>
+													<button
+														type="button"
+														onClick={() => removeService(index)}
+														className="text-red-500 hover:text-red-700">
+														<IconX size={16} />
+													</button>
+												</div>
+											))}
+										</div>
+									</div>
+
+									{/* Column 3: Address */}
+									<div className="space-y-4">
+										<label className="text-sm font-medium text-gray-700">
+											Address
+										</label>
+										<div className="grid grid-cols-1 gap-2">
+											<Input
+												placeholder="Street"
+												value={newAddress.street}
+												onChange={(e) =>
+													setNewAddress({
+														...newAddress,
+														street: e.target.value,
+													})
+												}
+											/>
+											<Input
+												placeholder="City/LGA"
+												value={newAddress.city}
+												onChange={(e) =>
+													setNewAddress({ ...newAddress, city: e.target.value })
+												}
+											/>
+											<Input
+												placeholder="State"
+												value={newAddress.state}
+												onChange={(e) =>
+													setNewAddress({
+														...newAddress,
+														state: e.target.value,
+													})
+												}
+											/>
+											<Input
+												placeholder="Country"
+												value={newAddress.country}
+												onChange={(e) =>
+													setNewAddress({
+														...newAddress,
+														country: e.target.value,
+													})
+												}
+											/>
+											<Button type="button" onClick={addAddress}>
+												Add Address
+											</Button>
+										</div>
+										<div className="space-y-2">
+											{formData.addresses.map((address, index) => (
+												<div
+													key={index}
+													className="bg-gray-100 p-3 rounded relative">
+													<button
+														type="button"
+														onClick={() => removeAddress(index)}
+														className="absolute top-2 right-2 text-red-500 hover:text-red-700">
+														<IconX size={16} />
+													</button>
+													<p className="text-sm">
+														<strong>Street:</strong> {address.street}
+													</p>
+													<p className="text-sm">
+														<strong>City:</strong> {address.city}
+													</p>
+													<p className="text-sm">
+														<strong>State:</strong> {address.state}
+													</p>
+													<p className="text-sm">
+														<strong>Country:</strong> {address.country}
+													</p>
+												</div>
+											))}
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div className="flex justify-end pt-4 gap-3">
+							<Button type="button" variant="outline" onClick={handleReset}>
+								Reset
+							</Button>
+							<Button onClick={handleNextStep} className="bg-secondary-1">
+								Next
+							</Button>
+						</div>
+					</div>
+				) : (
+					<div className="space-y-4">
+						<div className="bg-gray-100 p-4 rounded-lg border border-gray-200">
+							<div className="bg-white p-4 rounded-lg shadow-sm">
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									{/* Column 1: Consultation Details */}
+									<div className="space-y-4">
+										<h3 className="font-medium text-gray-700">
+											Consultation Details
+										</h3>
+
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Consultation Fee
+											</label>
+											<Input
+												name="consultationFee"
+												type="number"
+												value={formData.consultationFee}
+												onChange={handleInputChange}
+												placeholder="Enter consultation fee"
+												className="mt-1"
+											/>
+										</div>
+
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Coverage
+											</label>
+											<div className="flex space-x-2 mt-1">
+												<Input
+													value={coverageInput}
+													onChange={(e) => setCoverageInput(e.target.value)}
+													placeholder="Enter coverage"
+												/>
+												<Button type="button" onClick={addCoverage}>
+													Add
+												</Button>
+											</div>
+											<div className="space-y-2 mt-2">
+												{formData.coverages.map((coverage, index) => (
+													<div
+														key={index}
+														className="flex items-center justify-between bg-gray-100 px-3 py-2 rounded">
+														<span className="text-sm">{coverage}</span>
+														<button
+															type="button"
+															onClick={() => removeCoverage(index)}
+															className="text-red-500 hover:text-red-700">
+															<IconX size={16} />
+														</button>
+													</div>
+												))}
+											</div>
+										</div>
+									</div>
+
+									{/* Column 2: Accreditation & License */}
+									<div className="space-y-4">
+										<h3 className="font-medium text-gray-700">
+											Accreditation & License
+										</h3>
+
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												License Number
+											</label>
+											<Input
+												name="licenseNumber"
+												value={formData.licenseNumber}
+												onChange={handleInputChange}
+												placeholder="Enter license number"
+												className="mt-1"
+											/>
+										</div>
+
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Accreditation Body
+											</label>
+											<Input
+												name="accreditationBody"
+												value={formData.accreditationBody}
+												onChange={handleInputChange}
+												placeholder="Enter accreditation body"
+												className="mt-1"
+											/>
+										</div>
+
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Expiry Date
+											</label>
+											<Input
+												name="expiryDate"
+												type="date"
+												value={formData.expiryDate}
+												onChange={handleInputChange}
+												className="mt-1"
+											/>
+										</div>
+
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Certification Number
+											</label>
+											<Input
+												name="certificationNumber"
+												value={formData.certificationNumber}
+												onChange={handleInputChange}
+												placeholder="Enter certification number"
+												className="mt-1"
+											/>
+										</div>
+
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Certificate
+											</label>
+											<div
+												className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer mt-1"
+												onClick={() => certificateInputRef.current?.click()}>
+												{formData.certificatePreview ? (
+													<div className="relative">
+														<div className="flex items-center justify-center bg-gray-100 w-full h-32 rounded-md">
+															<span className="text-sm">
+																Certificate uploaded
+															</span>
+														</div>
+														<button
+															type="button"
+															className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1"
+															onClick={(e) => {
+																e.stopPropagation();
+																removeCertificate();
+															}}>
+															<IconX size={16} />
+														</button>
+													</div>
+												) : (
+													<>
+														<div className="text-gray-400 mb-2">
+															<IconPlus size={24} className="mx-auto" />
+														</div>
+														<p className="text-sm text-gray-500">
+															Click to upload certificate
+														</p>
+														<p className="text-xs text-gray-400">
+															PDF, DOC (max 10MB)
+														</p>
+													</>
+												)}
+												<input
+													type="file"
+													ref={certificateInputRef}
+													className="hidden"
+													onChange={handleCertificateUpload}
+													accept=".pdf,.doc,.docx"
+												/>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div className="flex justify-end gap-3 pt-4">
+							<Button
+								type="button"
+								variant="outline"
+								onClick={handlePreviousStep}>
+								Back
+							</Button>
+							<Button onClick={handleSubmit} className="bg-secondary-1">
+								Submit
+							</Button>
+						</div>
+					</div>
+				)}
+			</Modal>
+
+			{/* Rest of the component remains the same */}
 			<div className="p-3 flex flex-row justify-between border-b-[1px] border-[#E2E4E9] bg-white items-center gap-20 max-w-full rounded-lg">
 				<div className="flex flex-row justify-start bg-white items-center rounded-lg mx-auto special-btn-farmer pr-2">
 					{["View All", "Active", "Inactive"].map((status, index, arr) => (
@@ -273,7 +970,9 @@ export function HospitalDataTable<TData, TValue>({
 					<div className="w-[250px]">
 						<DateRangePicker dateRange={dateRange} onSelect={setDateRange} />
 					</div>
-					<Button className="bg-secondary-1 border-[1px] border-[#173C3D] text-primary-1 font-inter cborder">
+					<Button
+						className="bg-secondary-1 border-[1px] border-[#173C3D] text-primary-1 font-inter cborder"
+						onClick={openModal}>
 						<IconPlus /> Add Health Provider
 					</Button>
 				</div>
