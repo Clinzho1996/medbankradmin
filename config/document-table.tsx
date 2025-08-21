@@ -14,8 +14,10 @@ import {
 	VisibilityState,
 } from "@tanstack/react-table";
 
+import Modal from "@/components/Modal";
 import { Button } from "@/components/ui/button";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { Input } from "@/components/ui/input";
 import {
 	Select,
 	SelectContent,
@@ -31,20 +33,27 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { IconFileExport } from "@tabler/icons-react";
+import { IconPlus } from "@tabler/icons-react";
 import {
 	ChevronLeft,
 	ChevronRight,
 	ChevronsLeft,
 	ChevronsRight,
+	X,
 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import Image from "next/image";
+import React, { useEffect, useRef, useState } from "react";
 import { DateRange } from "react-day-picker";
-import * as XLSX from "xlsx";
 
 interface TransactionTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
+}
+
+interface FolderData {
+	name: string;
+	image: File | null;
+	imagePreview: string | null;
 }
 
 export function DocumentDataTables<TData, TValue>({
@@ -63,8 +72,67 @@ export function DocumentDataTables<TData, TValue>({
 	const [isModalOpen, setModalOpen] = useState(false);
 	const [tableData, setTableData] = useState(data);
 	const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+	// Folder creation state
+	const [folderData, setFolderData] = useState<FolderData>({
+		name: "",
+		image: null,
+		imagePreview: null,
+	});
+	const [uploadedFiles, setUploadedFiles] = useState<
+		Array<{ name: string; size: string; preview: string }>
+	>([]);
+	const fileInputRef = useRef<HTMLInputElement>(null);
+
 	const openModal = () => setModalOpen(true);
-	const closeModal = () => setModalOpen(false);
+	const closeModal = () => {
+		setModalOpen(false);
+		// Reset form when closing modal
+		setFolderData({
+			name: "",
+			image: null,
+			imagePreview: null,
+		});
+		setUploadedFiles([]);
+	};
+
+	const handleFolderNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		setFolderData({ ...folderData, name: e.target.value });
+	};
+
+	const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const files = e.target.files;
+		if (!files || files.length === 0) return;
+
+		const newFiles = Array.from(files).map((file) => {
+			const preview = URL.createObjectURL(file);
+			return {
+				name: file.name,
+				size: `${(file.size / (1024 * 1024)).toFixed(1)}mb`,
+				preview,
+			};
+		});
+
+		setUploadedFiles([...uploadedFiles, ...newFiles]);
+	};
+
+	const removeFile = (index: number) => {
+		const newFiles = [...uploadedFiles];
+		URL.revokeObjectURL(newFiles[index].preview); // Clean up memory
+		newFiles.splice(index, 1);
+		setUploadedFiles(newFiles);
+	};
+
+	const handleCreateFolder = () => {
+		// Implement folder creation logic here
+		console.log("Creating folder:", folderData.name);
+		console.log("Uploaded files:", uploadedFiles);
+
+		// Reset form and close modal after creation
+		closeModal();
+
+		// You would typically send this data to your API here
+	};
 
 	const filterDataByDateRange = () => {
 		if (!dateRange?.from || !dateRange?.to) {
@@ -99,44 +167,6 @@ export function DocumentDataTables<TData, TValue>({
 		}
 	};
 
-	const handleExport = () => {
-		// Convert the table data to a worksheet
-		const worksheet = XLSX.utils.json_to_sheet(tableData);
-
-		// Create a new workbook and add the worksheet
-		const workbook = XLSX.utils.book_new();
-		XLSX.utils.book_append_sheet(workbook, worksheet, "Farmers");
-
-		// Generate a binary string from the workbook
-		const binaryString = XLSX.write(workbook, {
-			bookType: "xlsx",
-			type: "binary",
-		});
-
-		// Convert the binary string to a Blob
-		const blob = new Blob([s2ab(binaryString)], {
-			type: "application/octet-stream",
-		});
-
-		// Create a link element and trigger the download
-		const url = URL.createObjectURL(blob);
-		const link = document.createElement("a");
-		link.href = url;
-		link.download = "staffs.xlsx";
-		link.click();
-
-		// Clean up
-		URL.revokeObjectURL(url);
-	};
-
-	// Utility function to convert string to ArrayBuffer
-	const s2ab = (s: string) => {
-		const buf = new ArrayBuffer(s.length);
-		const view = new Uint8Array(buf);
-		for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xff;
-		return buf;
-	};
-
 	const table = useReactTable({
 		data,
 		columns,
@@ -160,6 +190,114 @@ export function DocumentDataTables<TData, TValue>({
 
 	return (
 		<div className="rounded-lg border-[1px] py-0">
+			<Modal isOpen={isModalOpen} onClose={closeModal} title="Create Folder">
+				<div className="w-[96%] sm:w-[500px] mx-auto">
+					<div className="bg-[#F6F8FA] p-2 border rounded-lg">
+						<div className="p-3">
+							<p className="text-sm font-medium">Vault Folder Creation</p>
+							<p className="text-xs text-[#6B7280] mt-1">
+								Add basic information about the folder you are creating
+							</p>
+						</div>
+
+						<div className="bg-white p-3 rounded-lg shadow-lg mt-3">
+							{/* Folder name input */}
+							<p className="text-sm font-normal text-[#6B7280]">Folder Name</p>
+							<Input
+								type="text"
+								placeholder="Enter name of folder"
+								className="border border-gray-300 p-2 rounded-lg w-full mt-2"
+								value={folderData.name}
+								onChange={handleFolderNameChange}
+							/>
+
+							{/* File upload area */}
+							<div className="border bg-[#F6F8FA] p-1 mt-2 rounded-lg">
+								<div className="border bg-white p-1 rounded-lg">
+									<div
+										className="border bg-white p-1 border-dashed rounded-lg flex flex-row justify-start items-center gap-2 cursor-pointer"
+										onClick={() => fileInputRef.current?.click()}>
+										<Image
+											src="/images/Images.png"
+											alt="Folder Icon"
+											width={32}
+											height={32}
+										/>
+										<div>
+											<p className="text-sm font-normal text-secondary-1 ">
+												Click to upload folder image
+											</p>
+											<p className="text-xs font-normal text-[#A3A3A3] ">
+												JPEG, and PNG less than 10MB
+											</p>
+										</div>
+										<input
+											type="file"
+											ref={fileInputRef}
+											className="hidden"
+											onChange={handleFileUpload}
+											multiple
+											accept=".jpeg,.jpg,.png"
+										/>
+									</div>
+								</div>
+							</div>
+
+							{/* Uploaded files preview */}
+							{uploadedFiles.length > 0 && (
+								<>
+									<hr className="my-4" />
+									{uploadedFiles.map((file, index) => (
+										<div
+											key={index}
+											className="border bg-[#F6F8FA] p-1 mt-2 rounded-lg relative">
+											<div className="border bg-white p-1 rounded-lg">
+												<div className="border bg-white p-1 border-dashed rounded-lg flex flex-row justify-start items-center gap-2">
+													<Image
+														src="/images/fold2.png"
+														alt="Folder Icon"
+														width={68}
+														height={68}
+													/>
+													<div className="flex-1">
+														<p className="text-sm font-normal text-black ">
+															{file.name}
+														</p>
+														<p className="text-xs font-normal text-[#A3A3A3] ">
+															{file.size}
+														</p>
+													</div>
+													<button
+														className="p-1 text-gray-500 hover:text-red-500"
+														onClick={(e) => {
+															e.stopPropagation();
+															removeFile(index);
+														}}>
+														<X size={16} />
+													</button>
+												</div>
+											</div>
+										</div>
+									))}
+								</>
+							)}
+						</div>
+					</div>
+
+					<div className="flex flex-row justify-end items-center gap-3 mt-4">
+						<Button className="border" onClick={closeModal}>
+							Cancel
+						</Button>
+						<Button
+							className="bg-secondary-1"
+							onClick={handleCreateFolder}
+							disabled={!folderData.name || uploadedFiles.length === 0}>
+							Submit
+						</Button>
+					</div>
+				</div>
+			</Modal>
+			{/* Rest of your component remains the same */}
 			<div
 				className="bg-white flex flex-col border-b-[0px] border-[#E2E4E9] justify-start items-start rounded-lg"
 				style={{
@@ -189,8 +327,8 @@ export function DocumentDataTables<TData, TValue>({
 						</div>
 						<Button
 							className="bg-secondary-1 border-[1px] border-[#173C3D] text-primary-1 font-inter cborder"
-							onClick={handleExport}>
-							<IconFileExport /> Export Data
+							onClick={openModal}>
+							<IconPlus /> Create Folder
 						</Button>
 					</div>
 				</div>
