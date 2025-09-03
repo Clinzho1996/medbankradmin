@@ -16,36 +16,37 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-export type Staff = {
-	id: string;
-	name: string;
-	first_name: string;
-	last_name: string;
-	other_name: string;
-	phone_number: string;
-	mono_customer_id: string;
-	date: string;
-	role: string;
-	staff: string;
-	staff_code: string;
-	status?: string;
-	email: string;
-	created_at: string;
-	is_active: boolean;
+export type UserStats = {
+	logins: {
+		total: number;
+		percentChange: number;
+	};
+	files: {
+		total: number;
+		percentChange: number;
+	};
+	medications: {
+		total: number;
+		percentChange: number;
+	};
+	chats: {
+		total: number | null;
+		percentChange: number;
+	};
+	user: {
+		first_name?: string;
+		last_name?: string;
+		full_name?: string;
+	};
 };
-
-interface ApiResponse {
-	data: Staff; // Adjust to match your API structure
-}
 
 function EndUserDetails() {
 	const { id } = useParams();
 
 	const [isLoading, setIsLoading] = useState<boolean>(false);
-	const [userData, setUserData] = useState<Staff | null>(null);
-	// Function to get the name initials from the user's name
+	const [stats, setStats] = useState<UserStats | null>(null);
 
-	const fetchStaff = useCallback(async () => {
+	const fetchUserDetails = useCallback(async () => {
 		setIsLoading(true);
 		try {
 			const session = await getSession();
@@ -58,24 +59,46 @@ function EndUserDetails() {
 
 			const accessToken = session?.accessToken;
 
-			const response = await axios.get<ApiResponse>(
-				`https://api.kuditrak.ng/api/v1/user/${id}`,
+			const response = await axios.get(
+				`https://api.medbankr.ai/api/v1/administrator/user/${id}`,
 				{
 					headers: {
 						Accept: "application/json",
-						redirect: "follow",
 						Authorization: `Bearer ${accessToken}`,
 					},
 				}
 			);
 
-			console.log("data", response?.data?.data);
-			setUserData(response?.data?.data);
-			setIsLoading(false);
+			if (response.data.status) {
+				const data = response.data.data;
+				setStats({
+					logins: {
+						total: data.logins.total,
+						percentChange: data.logins.percentChange,
+					},
+					files: {
+						total: data.files.total,
+						percentChange: data.files.percentChange,
+					},
+					medications: {
+						total: data.medications.total,
+						percentChange: data.medications.percentChange,
+					},
+					chats: {
+						total: data.chats.total,
+						percentChange: data.chats.percentChange,
+					},
+					user: {
+						first_name: data.user.data.user.full_name?.split(" ")[0] || "",
+						last_name: data.user.data.user.full_name?.split(" ")[1] || "",
+						full_name: data.user.data.user.full_name,
+					},
+				});
+			}
 		} catch (error: unknown) {
 			if (axios.isAxiosError(error)) {
 				console.log(
-					"Error fetching post:",
+					"Error fetching user details:",
 					error.response?.data || error.message
 				);
 			} else {
@@ -87,12 +110,13 @@ function EndUserDetails() {
 	}, [id]);
 
 	useEffect(() => {
-		fetchStaff();
-	}, [fetchStaff]);
+		fetchUserDetails();
+	}, [fetchUserDetails]);
 
 	if (isLoading) {
 		return <Loader />;
 	}
+
 	return (
 		<div>
 			<HeaderBox title="User Management" />
@@ -104,7 +128,7 @@ function EndUserDetails() {
 				</Link>
 				<IconCaretRightFilled size={18} />
 				<p className="text-sm text-[#161616] font-normal ">
-					Detailed profile view for {userData?.first_name} {userData?.last_name}
+					Detailed profile view for {stats?.user.full_name}
 				</p>
 			</div>
 			<div className="flex flex-col sm:flex-row justify-between items-start px-4 py-2 gap-2 w-full max-w-[100vw]">
@@ -117,28 +141,30 @@ function EndUserDetails() {
 					<div className="flex flex-row justify-start items-center w-full gap-3">
 						<StatCard
 							title="Total Login"
-							value={45678}
-							percentage="36%"
-							positive
+							value={stats?.logins.total ?? 0}
+							percentage={`${stats?.logins.percentChange ?? 0}%`}
+							positive={(stats?.logins.percentChange ?? 0) >= 0}
 						/>
 
 						<StatCard
 							title="Document Uploaded"
-							value={3456}
-							percentage="24%"
-							positive={false}
+							value={stats?.files.total ?? 0}
+							percentage={`${stats?.files.percentChange ?? 0}%`}
+							positive={(stats?.files.percentChange ?? 0) >= 0}
 						/>
+
 						<StatCard
 							title="Symptoms Check Completed"
-							value={12345}
-							percentage="18%"
-							positive
+							value={stats?.chats.total ?? 0}
+							percentage={`${stats?.chats.percentChange ?? 0}%`}
+							positive={(stats?.chats.percentChange ?? 0) >= 0}
 						/>
+
 						<StatCard
 							title="Medication Tracked"
-							value={12345}
-							percentage="18%"
-							positive
+							value={stats?.medications.total ?? 0}
+							percentage={`${stats?.medications.percentChange ?? 0}%`}
+							positive={(stats?.medications.percentChange ?? 0) >= 0}
 						/>
 					</div>
 				</div>

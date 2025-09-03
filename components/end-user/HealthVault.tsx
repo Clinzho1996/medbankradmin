@@ -1,259 +1,111 @@
+"use client";
+
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { IconArrowRight } from "@tabler/icons-react";
+import axios from "axios";
+import { getSession } from "next-auth/react";
 import Image from "next/image";
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
+
+interface Folder {
+	_id: string;
+	name: string;
+	folder_description: string;
+	createdAt: string;
+	files?: FileItem[];
+}
+
+interface FileItem {
+	_id: string;
+	name: string;
+	type: string;
+	createdAt: string;
+	size?: string;
+}
 
 const HealthVault = () => {
-	const vaultSections = [
-		{
-			id: "medical-records",
-			name: "Medical Records",
-			icon: (
-				<img
-					src="/images/fold.png"
-					alt="Medical Records"
-					className="w-10 h-10 object-contain"
-				/>
-			),
-			files: [
-				{
-					id: "1",
-					name: "Annual Checkup Report",
-					type: "pdf",
-					date: "2025-06-15",
-					size: "2.4MB",
-					preview: "/placeholder-medical.jpg",
-				},
-				{
-					id: "2",
-					name: "Blood Test Results",
-					type: "pdf",
-					date: "2025-05-22",
-					size: "1.8MB",
-					preview: "/placeholder-blood.jpg",
-				},
-			],
-		},
-		{
-			id: "prescriptions",
-			name: "Prescriptions",
-			icon: (
-				<img
-					src="/images/fold2.png"
-					alt="Medical Records"
-					className="w-10 h-10 object-contain"
-				/>
-			),
-			files: [
-				{
-					id: "3",
-					name: "Antibiotics Prescription",
-					type: "pdf",
-					date: "2025-07-10",
-					size: "1.2MB",
-					preview: "/placeholder-prescription.jpg",
-				},
-			],
-		},
-		{
-			id: "scans",
-			name: "Scans & Imaging",
-			icon: (
-				<img
-					src="/images/fold3.png"
-					alt="Medical Records"
-					className="w-10 h-10 object-contain"
-				/>
-			),
-			files: [
-				{
-					id: "4",
-					name: "X-Ray Scan",
-					type: "jpg",
-					date: "2025-04-05",
-					size: "3.5MB",
-					preview: "/placeholder-xray.jpg",
-				},
-				{
-					id: "5",
-					name: "MRI Results",
-					type: "pdf",
-					date: "2025-03-18",
-					size: "4.2MB",
-					preview: "/placeholder-mri.jpg",
-				},
-			],
-		},
-		{
-			id: "diagnosis",
-			name: "Diagnosis",
-			icon: (
-				<img
-					src="/images/fold4.png"
-					alt="Medical Records"
-					className="w-10 h-10 object-contain"
-				/>
-			),
-			files: [
-				{
-					id: "6",
-					name: "Health Insurance Policy",
-					type: "pdf",
-					date: "2025-01-10",
-					size: "5.1MB",
-					preview: "/placeholder-insurance.jpg",
-				},
-				{
-					id: "7",
-					name: "Diagnosis Report",
-					type: "pdf",
-					date: "2025-01-10",
-					size: "5.1MB",
-					preview: "/placeholder-insurance.jpg",
-				},
-				{
-					id: "8",
-					name: "Lab Results",
-					type: "pdf",
-					date: "2025-01-10",
-					size: "5.1MB",
-					preview: "/placeholder-insurance.jpg",
-				},
-			],
-		},
-		{
-			id: "immunization",
-			name: "Immunization Records",
-			icon: (
-				<img
-					src="/images/fold3.png"
-					alt="Medical Records"
-					className="w-10 h-10 object-contain"
-				/>
-			),
-			files: [
-				{
-					id: "6",
-					name: "Immunization Certificate",
-					type: "pdf",
-					date: "2025-01-10",
-					size: "5.1MB",
-					preview: "/placeholder-insurance.jpg",
-				},
-			],
-		},
-		{
-			id: "chronic",
-			name: "Chronic Diseases",
-			icon: (
-				<img
-					src="/images/fold4.png"
-					alt="Medical Records"
-					className="w-10 h-10 object-contain"
-				/>
-			),
-			files: [
-				{
-					id: "6",
-					name: "Chronic Disease Management Plan",
-					type: "pdf",
-					date: "2025-01-10",
-					size: "5.1MB",
-					preview: "/placeholder-insurance.jpg",
-				},
-			],
-		},
-		{
-			id: "surgical",
-			name: "Surgical & Hospitalization",
-			icon: (
-				<img
-					src="/images/fold.png"
-					alt="Medical Records"
-					className="w-10 h-10 object-contain"
-				/>
-			),
-			files: [
-				{
-					id: "6",
-					name: "Surgical Report",
-					type: "pdf",
-					date: "2025-01-10",
-					size: "5.1MB",
-					preview: "/placeholder-insurance.jpg",
-				},
-			],
-		},
-		{
-			id: "fitness",
-			name: "Fitness & Wellness",
-			icon: (
-				<img
-					src="/images/fold2.png"
-					alt="Medical Records"
-					className="w-10 h-10 object-contain"
-				/>
-			),
-			files: [
-				{
-					id: "6",
-					name: "Fitness Assessment",
-					type: "pdf",
-					date: "2025-01-10",
-					size: "5.1MB",
-					preview: "/placeholder-insurance.jpg",
-				},
-			],
-		},
-		{
-			id: "insurance",
-			name: "Insurance & Admins",
-			icon: (
-				<img
-					src="/images/fold3.png"
-					alt="Medical Records"
-					className="w-10 h-10 object-contain"
-				/>
-			),
-			files: [
-				{
-					id: "6",
-					name: "Health Insurance Policy",
-					type: "pdf",
-					date: "2025-01-10",
-					size: "5.1MB",
-					preview: "/placeholder-insurance.jpg",
-				},
-			],
-		},
-		{
-			id: "others",
-			name: "Others",
-			icon: (
-				<img
-					src="/images/fold4.png"
-					alt="Medical Records"
-					className="w-10 h-10 object-contain"
-				/>
-			),
-			files: [
-				{
-					id: "6",
-					name: "Other Medical Records",
-					type: "pdf",
-					date: "2025-01-10",
-					size: "5.1MB",
-					preview: "/placeholder-insurance.jpg",
-				},
-			],
-		},
-	];
+	const { id } = useParams(); // get user id from route params
+	const [folders, setFolders] = useState<Folder[]>([]);
+	const [loading, setLoading] = useState(true);
+
+	// Get session + token
+	const getAuthHeaders = async () => {
+		const session = await getSession();
+		const accessToken = session?.accessToken;
+		if (!accessToken) return null;
+		return {
+			Accept: "application/json",
+			Authorization: `Bearer ${accessToken}`,
+		};
+	};
+
+	// Fetch folders for a user
+	useEffect(() => {
+		const fetchFolders = async () => {
+			try {
+				const headers = await getAuthHeaders();
+				if (!headers) return;
+
+				const res = await axios.get(
+					`https://api.medbankr.ai/api/v1/administrator/user/${id}/folder`,
+					{ headers }
+				);
+
+				if (res.data.status) {
+					setFolders(res.data.data);
+				} else {
+					toast.error("Failed to fetch folders");
+				}
+			} catch (err) {
+				console.error(err);
+				toast.error("Error fetching folders");
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		if (id) fetchFolders();
+	}, [id]);
+
+	// Fetch files in a folder
+	const fetchFiles = async (folderId: string) => {
+		try {
+			const headers = await getAuthHeaders();
+			if (!headers) return;
+
+			const res = await axios.get(
+				`https://api.medbankr.ai/api/v1/administrator/user/${id}/folder/${folderId}`,
+				{ headers }
+			);
+
+			if (res.data.status) {
+				setFolders((prev) =>
+					prev.map((f) =>
+						f._id === folderId ? { ...f, files: res.data.data.files } : f
+					)
+				);
+			}
+		} catch (err) {
+			console.error(err);
+			toast.error("Error fetching files");
+		}
+	};
+
+	if (loading) {
+		return <p className="p-4">Loading Health Vault...</p>;
+	}
 
 	return (
 		<div className="flex h-full min-h-[600px] w-full">
-			<Tabs defaultValue="medical-records" className="flex w-full gap-6">
-				{/* Vertical Tabs List - Left Side (30% width) */}
-				<TabsList className="flex flex-col h-full w-[30%] p-2 bg-gray-50 border rounded-lg shadow-lg justify-start ">
+			<Tabs
+				defaultValue={folders[0]?._id}
+				className="flex w-full gap-6"
+				onValueChange={(val) => fetchFiles(val)}>
+				{/* Sidebar */}
+				<TabsList className="flex flex-col h-full w-[30%] p-2 bg-gray-50 border rounded-lg shadow-lg justify-start">
 					<div className="flex flex-col gap-2 py-4">
 						<p className="font-normal text-left">Health Vault</p>
 						<p className="text-sm text-gray-500 text-left">
@@ -261,15 +113,21 @@ const HealthVault = () => {
 						</p>
 					</div>
 					<div className="bg-white p-3 shadow-lg rounded-lg">
-						{vaultSections.map((section) => (
+						{folders.map((folder) => (
 							<TabsTrigger
-								key={section.id}
-								value={section.id}
+								key={folder._id}
+								value={folder._id}
 								className="w-full justify-start px-4 py-3 data-[state=active]:bg-white data-[state=active]:shadow-lg border mt-3">
 								<div className="flex items-center w-full">
-									<div className="mr-3 text-blue-500">{section.icon}</div>
+									<div className="mr-3 text-blue-500">
+										<img
+											src="/images/fold.png"
+											alt="folder"
+											className="w-8 h-8 object-contain"
+										/>
+									</div>
 									<span className="flex-1 text-left font-medium">
-										{section.name}
+										{folder.name}
 									</span>
 									<IconArrowRight className="w-4 h-4 ml-2 text-gray-400" />
 								</div>
@@ -278,50 +136,54 @@ const HealthVault = () => {
 					</div>
 				</TabsList>
 
-				{/* Tab Content - Right Side (70% width) */}
+				{/* Content */}
 				<div className="w-[70%]">
-					{vaultSections.map((section) => (
-						<TabsContent key={section.id} value={section.id} className="h-full">
+					{folders.map((folder) => (
+						<TabsContent key={folder._id} value={folder._id} className="h-full">
 							<Card className="h-full p-6 shadow-sm">
-								<h2 className="text-xl font-semibold mb-6">{section.name}</h2>
+								<h2 className="text-xl font-semibold mb-2">{folder.name}</h2>
+								<p className="text-sm text-gray-500 mb-6">
+									{folder.folder_description}
+								</p>
 
 								<div className="space-y-4">
-									{section.files.map((file) => (
-										<Card
-											key={file.id}
-											className="p-4 flex items-center shadow">
-											{/* File Preview */}
-											<div className="w-12 h-12  rounded-md flex items-center justify-center mr-4 overflow-hidden">
-												{file.type === "pdf" ? (
+									{folder.files && folder.files.length > 0 ? (
+										folder.files.map((file) => (
+											<Card
+												key={file._id}
+												className="p-4 flex items-center shadow">
+												{/* File Preview */}
+												<div className="w-12 h-12 rounded-md flex items-center justify-center mr-4 overflow-hidden">
 													<Image
 														src="/images/pdfs.png"
 														alt="PDF Icon"
 														width={40}
 														height={40}
 													/>
-												) : (
-													<Image
-														src="/images/pdfs.png"
-														alt="PDF Icon"
-														width={40}
-														height={40}
-													/>
-												)}
-											</div>
-
-											{/* File Info */}
-											<div className="flex-1">
-												<h3 className="font-medium text-gray-800">
-													{file.name}
-												</h3>
-												<div className="flex text-sm text-gray-500 mt-1">
-													<span>{file.date}</span>
-													<span className="mx-2">•</span>
-													<span>{file.size}</span>
 												</div>
-											</div>
-										</Card>
-									))}
+
+												{/* File Info */}
+												<div className="flex-1">
+													<h3 className="font-medium text-gray-800">
+														{file.name}
+													</h3>
+													<div className="flex text-sm text-gray-500 mt-1">
+														<span>
+															{new Date(file.createdAt).toLocaleDateString()}
+														</span>
+														{file.size && (
+															<>
+																<span className="mx-2">•</span>
+																<span>{file.size}</span>
+															</>
+														)}
+													</div>
+												</div>
+											</Card>
+										))
+									) : (
+										<p className="text-gray-500">No files in this folder</p>
+									)}
 								</div>
 							</Card>
 						</TabsContent>

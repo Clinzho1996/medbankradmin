@@ -49,7 +49,7 @@ function HeaderBox({ title }: { title: string }) {
 				}
 
 				const response = await axios.get(
-					"https://api.kuditrak.ng/api/v1/user",
+					"https://api.medbankr.ai/api/v1/administrator/user",
 					{
 						headers: {
 							Accept: "application/json",

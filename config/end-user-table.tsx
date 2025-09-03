@@ -86,7 +86,6 @@ export function EndUserDataTable<TData, TValue>({
 
 	const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
-	
 	// Sync `tableData` with `data` prop
 	useEffect(() => {
 		setTableData(data);
@@ -187,9 +186,9 @@ export function EndUserDataTable<TData, TValue>({
 			console.log("Selected IDs for deletion:", selectedIds);
 
 			const response = await axios.delete(
-				"https://api.wowdev.com.ng/api/v1/user/bulk/delete",
+				"https://api.medbankr.ai/api/v1/administrator/user",
 				{
-					data: { user_ids: selectedIds }, // Ensure this matches the API's expected payload
+					data: { ids: selectedIds }, // Ensure this matches the API's expected payload
 					headers: {
 						Accept: "application/json",
 						Authorization: `Bearer ${accessToken}`,

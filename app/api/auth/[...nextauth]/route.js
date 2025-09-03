@@ -13,7 +13,7 @@ const handler = NextAuth({
 				try {
 					const { email, password } = credentials;
 					const res = await fetch(
-						`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/signin`,
+						`${process.env.NEXT_PUBLIC_BACKEND_URL}/administrator/authentication/login`,
 						{
 							method: "POST",
 							body: JSON.stringify({ email, password }),
@@ -25,19 +25,17 @@ const handler = NextAuth({
 					console.log("Auth Response:", data);
 
 					// Ensure the request was successful
-					if (!res.ok || data.status !== "success") {
-						console.error("Authentication failed:", data.message);
+					if (!res.ok || !data.status || !data.data) {
+						console.error("Authentication failed:", data.error || data.message);
 						return null;
 					}
 
 					// Return a properly structured user object
 					return {
 						id: data.data.id,
-						name: `${data.data.first_name} ${data.data.last_name}`,
-						image: data.data.pic,
-						email: data.data.email,
-						role: data.data.role,
-						accessToken: data.token,
+						email, // since your API doesn’t return email directly
+						role: data.data.role || "user", // fallback if no role provided
+						accessToken: data.data.token,
 					};
 				} catch (error) {
 					console.error("Error in authorize function:", error);
@@ -50,27 +48,23 @@ const handler = NextAuth({
 		async jwt({ token, user }) {
 			if (user) {
 				token.accessToken = user.accessToken;
-				token.name = user.name;
 				token.email = user.email;
-				token.image = user.image;
 				token.role = user.role;
+				token.id = user.id;
 			}
 			return token;
 		},
 		async session({ session, token }) {
 			session.accessToken = token.accessToken;
 			session.user = {
-				name: token.name,
+				id: token.id,
 				email: token.email,
-				image: token.image,
 				role: token.role,
 			};
 			return session;
 		},
 		async redirect({ url, baseUrl }) {
-			// Allows relative callback URLs
 			if (url.startsWith("/")) return `${baseUrl}${url}`;
-			// Allows callback URLs on the same origin
 			else if (new URL(url).origin === baseUrl) return url;
 			return baseUrl;
 		},

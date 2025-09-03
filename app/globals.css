@@ -234,6 +234,10 @@ body {
 	max-height: 90vh;
 	overflow-y: auto;
 }
+
+.modal-small {
+	width: 400px;
+}
 @layer utilities {
 	.flex-center {
 		@apply flex justify-center items-center;
