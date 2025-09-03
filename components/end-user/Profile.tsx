@@ -509,10 +509,10 @@ function Profile() {
 			{isDeleteModalOpen && (
 				<Modal onClose={closeDeleteModal} isOpen={isDeleteModalOpen}>
 					<p>
-						Are you sure you want to delete {user.full_name || user.email}'s
-						account?
+						Are you sure you want to delete {user.full_name || user.email}
+						&apos;s account?
 					</p>
-					<p className="text-sm text-primary-6">This can't be undone</p>
+					<p className="text-sm text-primary-6">This can&apos;t be undone</p>
 					<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">
 						<Button
 							className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs"
