@@ -1,9 +1,103 @@
+"use client";
+
 import HeaderBox from "@/components/HeaderBox";
 import StatCard from "@/components/StatCard";
-import EndUserTable from "@/config/end-user-columns";
+import EndUserTable, { EndUser } from "@/config/end-user-columns";
+import axios from "axios";
+import { getSession } from "next-auth/react";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 
-function EndUser() {
+interface ApiResponse {
+	status: boolean;
+	message: string;
+	data: EndUser[];
+	overview: {
+		total: number;
+		disable: number;
+		active: number;
+	};
+	pagination: {
+		total: number;
+		page: number;
+		limit: number;
+		pages: number;
+	};
+	filters: Record<string, any>;
+}
+function EndUserPage() {
+	const [isLoading, setIsLoading] = useState(false);
+	const [stats, setStats] = useState<ApiResponse | null>(null);
+	const fetchUsers = async (page = 1, limit = 5000) => {
+		try {
+			setIsLoading(true);
+			const session = await getSession();
+
+			const accessToken = session?.accessToken;
+			if (!accessToken) {
+				console.error("No access token found.");
+				setIsLoading(false);
+				return;
+			}
+
+			const response = await axios.get(
+				`https://api.medbankr.ai/api/v1/administrator/user?page=${page}&limit=${limit}`,
+				{
+					headers: {
+						Accept: "application/json",
+						Authorization: `Bearer ${accessToken}`,
+					},
+				}
+			);
+
+			if (response.data.status === true) {
+				// Map the API response to match the `EndUser` type
+				const formattedData = response.data.data.map((user: any) => ({
+					id: user._id,
+					public_id: user.public_id,
+					pic: user.profile_pic,
+					full_name: user.full_name,
+					email: user.email,
+					status: user.status,
+					date_of_birth: user.date_of_birth,
+					gender: user.gender,
+					created_at: user.createdAt,
+					verified: user.verified,
+					role: user.role,
+				}));
+
+				console.log("Users Data:", formattedData);
+			}
+
+			if (response.data.overview) {
+				setStats({
+					status: response.data.status,
+					message: response.data.message,
+					data: response.data.data,
+					overview: {
+						total: response.data.overview.total,
+						active: response.data.overview.active,
+						disable: response.data.overview.disable,
+					},
+					pagination: {
+						total: response.data.pagination.total,
+						page: response.data.pagination.page,
+						limit: response.data.pagination.limit,
+						pages: response.data.pagination.pages,
+					},
+					filters: response.data.filters,
+				});
+			}
+		} catch (error) {
+			console.error("Error fetching user data:", error);
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	useEffect(() => {
+		fetchUsers(1, 5000); // Fetch first page with higher limit
+	}, []);
 	return (
 		<div className="w-full overflow-x-hidden">
 			<HeaderBox title="End User" />
@@ -21,20 +115,20 @@ function EndUser() {
 					<div className="flex flex-row justify-start items-center w-full gap-3">
 						<StatCard
 							title="Total Users"
-							value={45678}
+							value={stats?.overview.total ?? 0}
 							percentage="36%"
 							positive
 						/>
 
 						<StatCard
 							title="Total Active Users Today"
-							value={3456}
+							value={stats?.overview.active ?? 0}
 							percentage="24%"
 							positive={false}
 						/>
 						<StatCard
 							title="Total Active Users Weekly"
-							value={12345}
+							value={stats?.overview.active ?? 0}
 							percentage="18%"
 							positive
 						/>
@@ -48,4 +142,4 @@ function EndUser() {
 	);
 }
 
-export default EndUser;
+export default EndUserPage;

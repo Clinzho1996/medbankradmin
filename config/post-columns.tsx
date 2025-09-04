@@ -6,7 +6,7 @@ import { ArrowUpDown } from "lucide-react";
 import Modal from "@/components/Modal";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { IconEdit, IconTrash } from "@tabler/icons-react";
+import { IconEdit, IconEye, IconEyeOff, IconTrash } from "@tabler/icons-react";
 import axios from "axios";
 import { getSession } from "next-auth/react";
 import dynamic from "next/dynamic";
@@ -49,7 +49,7 @@ export type Post = {
 };
 
 interface PostTableComponentProps {
-	refreshKey: () => void; // It should expect a function
+	refreshKey: () => void;
 }
 
 const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
@@ -59,10 +59,11 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 	const [isEditModalOpen, setEditModalOpen] = useState(false);
 	const [selectedRow, setSelectedRow] = useState<any>(null);
 
-	const [title, setTitle] = useState("");
+	const [postTitle, setPostTitle] = useState("");
 	const [content, setContent] = useState("");
-	const [featuredImage, setFeaturedImage] = useState<File | null>(null);
-	const [postStatus, setPostStatus] = useState("draft");
+	const [category, setCategory] = useState("News");
+	const [coverImage, setCoverImage] = useState<File | null>(null);
+	const [status, setStatus] = useState("draft");
 	const [previewImage, setPreviewImage] = useState<string | null>(null);
 	const [isClient, setIsClient] = useState(false);
 
@@ -72,7 +73,7 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 
 	const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
 		const file = event.target.files?.[0] || null;
-		setFeaturedImage(file);
+		setCoverImage(file);
 
 		if (file) {
 			const reader = new FileReader();
@@ -107,9 +108,9 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 
 	const openEditModal = (row: any) => {
 		setSelectedRow(row.original);
-		setTitle(row.original.title);
+		setPostTitle(row.original.title);
 		setContent(row.original.content);
-		setPostStatus(row.original.post_status);
+		setStatus(row.original.post_status);
 		setPreviewImage(row.original.featuredImage);
 		setEditModalOpen(true);
 	};
@@ -134,7 +135,7 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 			}
 
 			await axios.delete(
-				`https://api.kuditrak.unknown/api/v1/post/${selectedRow.id}`,
+				`https://api.medbankr.ai/api/v1/administrator/blog/${selectedRow.id}`,
 				{
 					headers: {
 						Authorization: `Bearer ${session?.accessToken}`,
@@ -144,8 +145,12 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 			toast.success("Post deleted successfully!");
 			closeDeleteModal();
 			refreshKey();
-		} catch (error) {
+		} catch (error: any) {
 			console.error("Error deleting Post:", error);
+			const errorMessage =
+				error.response?.data?.message ||
+				"Failed to delete post. Please try again.";
+			toast.error(errorMessage);
 		}
 	};
 
@@ -153,7 +158,7 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 		try {
 			setIsLoading(true);
 
-			if (!title.trim()) {
+			if (!postTitle.trim()) {
 				toast.error("The post title is required.");
 				setIsLoading(false);
 				return;
@@ -172,15 +177,26 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 			}
 
 			const formData = new FormData();
-			formData.append("post_title", title);
-			formData.append("post_body", content);
-			formData.append("post_status", postStatus);
-			if (featuredImage) {
-				formData.append("post_image", featuredImage);
+			formData.append("post_title", postTitle);
+			formData.append("content", content);
+			formData.append("category", category);
+			formData.append("status", status);
+
+			// Add author information from session if available
+			if (session.user?.name) {
+				formData.append("author_name", session.user.name);
 			}
 
-			const response = await axios.post(
-				`https://api.kuditrak.ng/api/v1/post/${selectedRow.id}`,
+			if (session.user?.image) {
+				formData.append("author_image", session.user.image);
+			}
+
+			if (coverImage) {
+				formData.append("cover_image", coverImage);
+			}
+
+			const response = await axios.put(
+				`https://api.medbankr.ai/api/v1/administrator/blog/${selectedRow.id}`,
 				formData,
 				{
 					headers: {
@@ -192,20 +208,66 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 
 			if (response.data.error) {
 				toast.error(response.data.error);
-			} else {
+			} else if (response.data.status === true) {
 				toast.success("Post updated successfully!");
 				closeEditModal();
 				refreshKey();
+			} else {
+				toast.error("Failed to update post. Please try again.");
 			}
-		} catch (error) {
+		} catch (error: any) {
 			console.error("Error updating post:", error);
-			toast.error("An error occurred while updating the post.");
+			const errorMessage =
+				error.response?.data?.message ||
+				"An error occurred while updating the post.";
+			toast.error(errorMessage);
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
-	const fetchTransactionData = async () => {
+	const handlePublishUnpublish = async (
+		postId: string,
+		newStatus: "publish" | "draft"
+	) => {
+		try {
+			const session = await getSession();
+			if (!session || !session.accessToken) {
+				toast.error("You need to be logged in to update post status.");
+				return;
+			}
+
+			const response = await axios.put(
+				`https://api.medbankr.ai/api/v1/administrator/blog/${postId}/status`,
+				{ status: newStatus },
+				{
+					headers: {
+						Authorization: `Bearer ${session.accessToken}`,
+						"Content-Type": "application/json",
+					},
+				}
+			);
+
+			if (response.data.status === true) {
+				toast.success(
+					`Post ${
+						newStatus === "publish" ? "published" : "unpublished"
+					} successfully!`
+				);
+				refreshKey();
+			} else {
+				toast.error("Failed to update post status. Please try again.");
+			}
+		} catch (error: any) {
+			console.error("Error updating post status:", error);
+			const errorMessage =
+				error.response?.data?.message ||
+				"An error occurred while updating post status.";
+			toast.error(errorMessage);
+		}
+	};
+
+	const fetchPostData = async () => {
 		try {
 			setIsLoading(true);
 			const session = await getSession();
@@ -217,7 +279,7 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 			}
 
 			const response = await axios.get<{ data: ApiResponse[] }>(
-				"https://api.kuditrak.ng/api/v1/post",
+				"https://api.medbankr.ai/api/v1/administrator/blog",
 				{
 					headers: {
 						Accept: "application/json",
@@ -242,15 +304,19 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 			}));
 
 			setTableData(mappedData);
-		} catch (error) {
-			console.error("Error fetching user data:", error);
+		} catch (error: any) {
+			console.error("Error fetching post data:", error);
+			const errorMessage =
+				error.response?.data?.message ||
+				"Failed to fetch posts. Please try again.";
+			toast.error(errorMessage);
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
 	useEffect(() => {
-		fetchTransactionData();
+		fetchPostData();
 	}, [refreshKey]);
 
 	const columns: ColumnDef<Post>[] = [
@@ -361,16 +427,30 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 			},
 		},
 		{
+			accessorKey: "post_status",
+			header: "Status",
+			cell: ({ row }) => {
+				const status = row.getValue<string>("post_status");
+				const statusColor =
+					status === "publish" ? "text-green-600" : "text-yellow-600";
+
+				return (
+					<span className={`text-xs font-medium ${statusColor}`}>
+						{status.charAt(0).toUpperCase() + status.slice(1)}
+					</span>
+				);
+			},
+		},
+		{
 			id: "actions",
 			header: "Action",
 			cell: ({ row }) => {
-				const actions = row.original;
+				const post = row.original;
+				const isPublished = post.post_status === "publish";
 
 				return (
-					<div className="flex flex-row justify-start items-center gap-5">
-						<Link
-							href={`https://www.kuditrak.ng/blog/${actions.id}`}
-							target="_blank">
+					<div className="flex flex-row justify-start items-center gap-3">
+						<Link href={`/blog/${post.id}`} target="_blank">
 							<Button className="border-[#E8E8E8] border-[1px] text-xs font-medium text-[#6B7280] font-inter">
 								View
 							</Button>
@@ -381,6 +461,20 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 							onClick={() => openEditModal(row)}>
 							<IconEdit />
 						</Button>
+
+						<Button
+							className={`border-[#E8E8E8] border-[1px] text-sm font-medium font-inter ${
+								isPublished ? "text-red-600" : "text-green-600"
+							}`}
+							onClick={() =>
+								handlePublishUnpublish(
+									post.id,
+									isPublished ? "draft" : "publish"
+								)
+							}>
+							{isPublished ? <IconEyeOff /> : <IconEye />}
+						</Button>
+
 						<Button
 							className="border-[#E8E8E8] border-[1px] text-sm font-medium text-[#6B7280] font-inter"
 							onClick={() => openDeleteModal(row)}>
@@ -390,6 +484,18 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 				);
 			},
 		},
+	];
+
+	// Category options
+	const categories = [
+		"News",
+		"Health",
+		"Technology",
+		"Lifestyle",
+		"Entertainment",
+		"Sports",
+		"Business",
+		"Education",
 	];
 
 	return (
@@ -406,21 +512,38 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 					<div className="space-y-4 mt-4 max-h-[70vh] overflow-y-auto ">
 						<div>
 							<label className="block text-sm font-medium text-gray-700">
-								Title
+								Post Title
 							</label>
 							<input
 								type="text"
-								value={title}
-								onChange={(e) => setTitle(e.target.value)}
+								value={postTitle}
+								onChange={(e) => setPostTitle(e.target.value)}
 								className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm"
+								placeholder="Enter post title"
 							/>
+						</div>
+
+						<div>
+							<label className="block text-sm font-medium text-gray-700">
+								Category
+							</label>
+							<select
+								value={category}
+								onChange={(e) => setCategory(e.target.value)}
+								className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm">
+								{categories.map((cat) => (
+									<option key={cat} value={cat}>
+										{cat}
+									</option>
+								))}
+							</select>
 						</div>
 
 						{/* File Picker - Render only on client */}
 						{isClient && (
 							<div>
 								<label className="block text-sm font-medium text-gray-700">
-									Featured Image
+									Cover Image
 								</label>
 								<input
 									type="file"
@@ -445,8 +568,8 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 								Post Status
 							</label>
 							<select
-								value={postStatus}
-								onChange={(e) => setPostStatus(e.target.value)}
+								value={status}
+								onChange={(e) => setStatus(e.target.value)}
 								className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm">
 								<option value="draft">Draft</option>
 								<option value="publish">Publish</option>
@@ -463,6 +586,7 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 									onChange={setContent}
 									modules={modules}
 									className="mt-2"
+									placeholder="Write your post content here..."
 								/>
 							)}
 						</div>
@@ -478,7 +602,7 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 								onClick={handleUpdatePost}
 								className="bg-primary-2 text-white font-inter text-xs"
 								disabled={isLoading}>
-								{isLoading ? "Adding Post..." : "Update Post"}
+								{isLoading ? "Updating Post..." : "Update Post"}
 							</Button>
 						</div>
 					</div>
@@ -501,10 +625,7 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 						</Button>
 						<Button
 							className="bg-[#F04F4A] text-white font-inter text-xs modal-delete"
-							onClick={() => {
-								handleDelete();
-								closeDeleteModal();
-							}}>
+							onClick={handleDelete}>
 							Yes, Confirm
 						</Button>
 					</div>

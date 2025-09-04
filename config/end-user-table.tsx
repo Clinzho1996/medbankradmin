@@ -46,6 +46,7 @@ import React, { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
+import { EndUser } from "./end-user-columns";
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
@@ -53,18 +54,21 @@ interface DataTableProps<TData, TValue> {
 }
 
 interface ApiResponse {
-	id: string;
-	first_name: string;
-	last_name: string;
-	email: string;
-	picture: string | null;
-	staff_code: string;
-	role: string;
-	is_active: boolean;
-	last_logged_in: string | null;
-	created_at: string;
-	updated_at: string;
-	status?: string;
+	status: boolean;
+	message: string;
+	data: EndUser[];
+	overview: {
+		total: number;
+		disable: number;
+		active: number;
+	};
+	pagination: {
+		total: number;
+		page: number;
+		limit: number;
+		pages: number;
+	};
+	filters: Record<string, any>;
 }
 
 export function EndUserDataTable<TData, TValue>({
@@ -83,6 +87,7 @@ export function EndUserDataTable<TData, TValue>({
 	const [isModalOpen, setModalOpen] = useState(false);
 	const [tableData, setTableData] = useState<TData[]>(data);
 	const [isLoading, setIsLoading] = useState(false);
+	const [stats, setStats] = useState<ApiResponse | null>(null);
 
 	const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
@@ -124,6 +129,8 @@ export function EndUserDataTable<TData, TValue>({
 			setTableData(filteredData as TData[]);
 		}
 	};
+
+	
 
 	const handleExport = () => {
 		// Convert the table data to a worksheet

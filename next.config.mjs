@@ -6,6 +6,7 @@ const nextConfig = {
 			"ui-avatars.com",
 			"img.clerk.com",
 			"res.cloudinary.com",
+			"api.dicebear.com",
 		],
 	},
 	experimental: {

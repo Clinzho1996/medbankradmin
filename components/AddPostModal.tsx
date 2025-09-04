@@ -18,10 +18,11 @@ interface AddPostModalProps {
 
 const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 	const [isLoading, setIsLoading] = useState(false);
-	const [title, setTitle] = useState("");
+	const [postTitle, setPostTitle] = useState("");
 	const [content, setContent] = useState("");
-	const [featuredImage, setFeaturedImage] = useState<File | null>(null);
-	const [postStatus, setPostStatus] = useState("draft");
+	const [category, setCategory] = useState("News");
+	const [coverImage, setCoverImage] = useState<File | null>(null);
+	const [status, setStatus] = useState("draft");
 	const [previewImage, setPreviewImage] = useState<string | null>(null);
 	const [isClient, setIsClient] = useState(false);
 
@@ -31,7 +32,7 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 
 	const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
 		const file = event.target.files?.[0] || null;
-		setFeaturedImage(file);
+		setCoverImage(file);
 
 		if (file) {
 			const reader = new FileReader();
@@ -48,7 +49,7 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 		try {
 			setIsLoading(true);
 
-			if (!title.trim()) {
+			if (!postTitle.trim()) {
 				toast.error("The post title is required.");
 				setIsLoading(false);
 				return;
@@ -67,15 +68,26 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 			}
 
 			const formData = new FormData();
-			formData.append("post_title", title);
-			formData.append("post_body", content);
-			formData.append("post_status", postStatus);
-			if (featuredImage) {
-				formData.append("post_image", featuredImage);
+			formData.append("post_title", postTitle);
+			formData.append("content", content);
+			formData.append("category", category);
+			formData.append("status", status === "draft" ? "draft" : "publish");
+
+			// Add author information from session if available
+			if (session.user?.name) {
+				formData.append("author_name", session.user.name);
+			}
+
+			if (session.user?.image) {
+				formData.append("author_image", session.user.image);
+			}
+
+			if (coverImage) {
+				formData.append("cover_image", coverImage);
 			}
 
 			const response = await axios.post(
-				"https://api.kuditrak.ng/api/v1/post",
+				"https://api.medbankr.ai/api/v1/administrator/blog", // Updated API endpoint
 				formData,
 				{
 					headers: {
@@ -87,14 +99,26 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 
 			if (response.data.error) {
 				toast.error(response.data.error);
-			} else {
+			} else if (response.data.status === true) {
 				toast.success("Post created successfully!");
 				onPostAdded();
 				onClose();
+				// Reset form
+				setPostTitle("");
+				setContent("");
+				setCategory("News");
+				setCoverImage(null);
+				setPreviewImage(null);
+				setStatus("draft");
+			} else {
+				toast.error("Failed to create post. Please try again.");
 			}
-		} catch (error) {
+		} catch (error: any) {
 			console.error("Error adding post:", error);
-			toast.error("An error occurred while adding the post.");
+			const errorMessage =
+				error.response?.data?.message ||
+				"An error occurred while adding the post.";
+			toast.error(errorMessage);
 		} finally {
 			setIsLoading(false);
 		}
@@ -115,6 +139,18 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 		],
 	};
 
+	// Category options
+	const categories = [
+		"News",
+		"Health",
+		"Technology",
+		"Lifestyle",
+		"Entertainment",
+		"Sports",
+		"Business",
+		"Education",
+	];
+
 	return (
 		<Modal
 			isOpen={isOpen}
@@ -125,21 +161,38 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 			<div className="space-y-4 mt-4 max-h-[70vh] overflow-y-auto ">
 				<div>
 					<label className="block text-sm font-medium text-gray-700">
-						Title
+						Post Title
 					</label>
 					<input
 						type="text"
-						value={title}
-						onChange={(e) => setTitle(e.target.value)}
+						value={postTitle}
+						onChange={(e) => setPostTitle(e.target.value)}
 						className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm"
+						placeholder="Enter post title"
 					/>
+				</div>
+
+				<div>
+					<label className="block text-sm font-medium text-gray-700">
+						Category
+					</label>
+					<select
+						value={category}
+						onChange={(e) => setCategory(e.target.value)}
+						className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm">
+						{categories.map((cat) => (
+							<option key={cat} value={cat}>
+								{cat}
+							</option>
+						))}
+					</select>
 				</div>
 
 				{/* File Picker - Render only on client */}
 				{isClient && (
 					<div>
 						<label className="block text-sm font-medium text-gray-700">
-							Featured Image
+							Cover Image
 						</label>
 						<input
 							type="file"
@@ -164,8 +217,8 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 						Post Status
 					</label>
 					<select
-						value={postStatus}
-						onChange={(e) => setPostStatus(e.target.value)}
+						value={status}
+						onChange={(e) => setStatus(e.target.value)}
 						className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm">
 						<option value="draft">Draft</option>
 						<option value="publish">Publish</option>
@@ -181,6 +234,7 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 						onChange={setContent}
 						modules={modules}
 						className="mt-2"
+						placeholder="Write your post content here..."
 					/>
 				</div>
 

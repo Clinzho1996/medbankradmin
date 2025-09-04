@@ -6,14 +6,6 @@ import Loader from "@/components/Loader";
 import Modal from "@/components/Modal";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { IconTrash } from "@tabler/icons-react";
 import axios from "axios";
 import { getSession } from "next-auth/react";
@@ -29,25 +21,11 @@ export type Staff = {
 	name?: string;
 	date: string;
 	role: string;
+	pic?: string | null;
 	staff: string;
 	status?: string;
 	email: string;
 };
-
-interface ApiResponse {
-	id: string;
-	first_name: string;
-	last_name: string;
-	email: string;
-	picture: string | null;
-	staff_code: string;
-	role: string;
-	is_active: boolean;
-	last_logged_in: string | null;
-	created_at: string;
-	updated_at: string;
-	status?: string;
-}
 
 declare module "next-auth" {
 	interface Session {
@@ -56,113 +34,31 @@ declare module "next-auth" {
 }
 
 const StaffTable = () => {
-	const [isRestoreModalOpen, setRestoreModalOpen] = useState(false);
-	const [isReactivateModalOpen, setReactivateModalOpen] = useState(false);
 	const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
 	const [selectedRow, setSelectedRow] = useState<any>(null);
 	const [isLoading, setIsLoading] = useState<boolean>(false);
 	const [tableData, setTableData] = useState<Staff[]>([]);
-	const [isEditModalOpen, setEditModalOpen] = useState(false);
-	const [editData, setEditData] = useState({
-		id: "",
-		firstName: "",
-		lastName: "",
-		email: "",
-		staffId: "",
-		role: "super_admin",
+
+	const [pagination, setPagination] = useState({
+		page: 1,
+		limit: 50, // Increased limit to get more records
+		total: 0,
+		pages: 1,
 	});
-
-	const openEditModal = (row: any) => {
-		const staff = row.original;
-		setEditData({
-			id: staff.id,
-			firstName: staff.name?.split(" ")[0] || "",
-			lastName: staff.name?.split(" ")[1] || "",
-			email: staff.email,
-			staffId: staff.staff,
-			role: staff.role,
-		});
-		setEditModalOpen(true);
-	};
-
-	const closeEditModal = () => {
-		setEditModalOpen(false);
-	};
-
-	const handleEditStaff = async () => {
-		try {
-			setIsLoading(true);
-			const session = await getSession();
-			const accessToken = session?.accessToken;
-
-			if (!accessToken) {
-				console.error("No access token found.");
-				return;
-			}
-
-			const response = await axios.post(
-				`https://api.wowdev.com.ng/api/v1/user/${editData.id}`,
-				{
-					first_name: editData.firstName,
-					last_name: editData.lastName,
-					email: editData.email,
-					staff_code: editData.staffId,
-					role: editData.role,
-				},
-				{
-					headers: {
-						Accept: "application/json",
-						Authorization: `Bearer ${accessToken}`,
-					},
-				}
-			);
-
-			if (response.status === 200) {
-				toast.success("Staff updated successfully.");
-				fetchStaffs(); // Refresh the table data
-				closeEditModal();
-			}
-		} catch (error) {
-			console.error("Error updating staff:", error);
-			toast.error("Failed to update staff. Please try again.");
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	const openRestoreModal = (row: any) => {
-		setSelectedRow(row.original);
-		setRestoreModalOpen(true);
-	};
-
-	const openReactivateModal = (row: any) => {
-		setSelectedRow(row.original);
-		setReactivateModalOpen(true);
-	};
 
 	const openDeleteModal = (row: any) => {
 		setSelectedRow(row.original);
 		setDeleteModalOpen(true);
 	};
 
-	const closeRestoreModal = () => {
-		setRestoreModalOpen(false);
-	};
-
-	const closeReactivateModal = () => {
-		setReactivateModalOpen(false);
-	};
-
 	const closeDeleteModal = () => {
 		setDeleteModalOpen(false);
 	};
 
-	const fetchStaffs = async () => {
+	const fetchStaffs = async (page = 1, limit = 50) => {
 		try {
 			setIsLoading(true);
 			const session = await getSession();
-
-			console.log("session", session);
 
 			const accessToken = session?.accessToken;
 			if (!accessToken) {
@@ -172,32 +68,40 @@ const StaffTable = () => {
 			}
 
 			const response = await axios.get(
-				"https://api.kuditrak.ng/api/v1/user/role/users",
+				`https://api.medbankr.ai/api/v1/administrator/staff?page=${page}&limit=${limit}`,
 				{
 					headers: {
 						Accept: "application/json",
-						Authorization: `Bearer ${session?.accessToken}`,
+						Authorization: `Bearer ${accessToken}`,
 					},
 				}
 			);
 
-			if (response.data.status === "success") {
-				// Map the API response to match the `Readers` type
-				const formattedData = response.data.data.map((reader: any) => ({
-					id: reader.id,
-					name: `${reader.first_name} ${reader.last_name} ${
-						reader.other_name || ""
-					}`,
-					date: reader.created_at,
-					bookRead: reader.books_read,
-					subStatus: reader.is_premium ? "subscribed" : "free",
-					status: reader.is_blocked ? "inactive" : "active",
-					email: reader.email,
+			if (response.data.status === true) {
+				// Map the API response to match the `EndUser` type
+				const formattedData = response.data.data.map((user: any) => ({
+					id: user._id,
+					public_id: user.public_id,
+					pic: user.profile_pic,
+					full_name: user.full_name,
+					email: user.email,
+					status: user.status,
+					last_login: user.last_login,
+					gender: user.gender,
+					created_at: user.createdAt,
+					verified: user.verified,
+					role: user.role,
 				}));
 
 				setTableData(formattedData);
 
-				console.log("Readers Data:", formattedData);
+				// Update pagination info
+				if (response.data.pagination) {
+					setPagination(response.data.pagination);
+				}
+
+				console.log("Staffs Data:", formattedData);
+				console.log("Pagination:", response.data.pagination);
 			}
 		} catch (error) {
 			console.error("Error fetching user data:", error);
@@ -207,7 +111,7 @@ const StaffTable = () => {
 	};
 
 	useEffect(() => {
-		fetchStaffs();
+		fetchStaffs(1, 50); // Fetch first page with higher limit
 	}, []);
 
 	const deleteStaff = async (id: string) => {
@@ -221,101 +125,31 @@ const StaffTable = () => {
 			}
 
 			const response = await axios.delete(
-				`https://api.wowdev.com.ng/api/v1/user/${id}`,
+				`https://api.medbankr.ai/api/v1/administrator/staff`,
 				{
 					headers: {
 						Accept: "application/json",
 						Authorization: `Bearer ${accessToken}`,
+						"Content-Type": "application/json",
 					},
+					data: { id }, // 👈 send id in body instead of URL
 				}
 			);
 
 			if (response.status === 200) {
-				// Remove the deleted staff from the table
-				setTableData((prevData) => prevData.filter((staff) => staff.id !== id));
-
-				toast.success("Staff deleted successfully.");
+				// Remove the deleted user from the table
+				setTableData((prevData) => prevData.filter((user) => user.id !== id));
+				toast.success("User deleted successfully.");
 			}
 		} catch (error) {
-			console.error("Error deleting staff:", error);
+			console.error("Error deleting user:", error);
+			toast.error("Failed to delete user. Please try again.");
 		}
 	};
 
-	const suspendStaff = async (id: string) => {
-		try {
-			const session = await getSession();
-			const accessToken = session?.accessToken;
+	const formatDate = (rawDate: string | Date | null) => {
+		if (!rawDate) return "N/A";
 
-			if (!accessToken) {
-				console.error("No access token found.");
-				return;
-			}
-
-			const response = await axios.put(
-				`https://api.wowdev.com.ng/api/v1/user/suspend/${id}`,
-				{},
-				{
-					headers: {
-						Accept: "application/json",
-						Authorization: `Bearer ${accessToken}`,
-					},
-				}
-			);
-
-			if (response.status === 200) {
-				// Update the staff status in the table
-				setTableData((prevData) =>
-					prevData.map((staff) =>
-						staff.id === id ? { ...staff, status: "inactive" } : staff
-					)
-				);
-
-				toast.success("Staff suspended successfully.");
-			}
-		} catch (error) {
-			console.error("Error suspending staff:", error);
-			toast.error("Failed to suspend staff. Please try again.");
-		}
-	};
-
-	const reactivateStaff = async (id: string) => {
-		try {
-			const session = await getSession();
-			const accessToken = session?.accessToken;
-
-			if (!accessToken) {
-				console.error("No access token found.");
-				return;
-			}
-
-			const response = await axios.put(
-				`https://api.wowdev.com.ng/api/v1/user/reactivate/${id}`,
-				{},
-				{
-					headers: {
-						Accept: "application/json",
-						Authorization: `Bearer ${accessToken}`,
-					},
-				}
-			);
-
-			if (response.status === 200) {
-				// Update the staff status in the table
-				setTableData((prevData) =>
-					prevData.map((staff) =>
-						staff.id === id ? { ...staff, status: "active" } : staff
-					)
-				);
-
-				toast.success("Staff reactivated successfully.");
-			}
-		} catch (error) {
-			console.error("Error suspending staff:", error);
-			toast.error("Failed to reactivate staff. Please try again.");
-		}
-	};
-
-	const formatDate = (rawDate: string | Date) => {
 		const options: Intl.DateTimeFormatOptions = {
 			year: "numeric",
 			month: "long",
@@ -363,22 +197,21 @@ const StaffTable = () => {
 			},
 		},
 		{
-			accessorKey: "name",
+			accessorKey: "full_name",
 			header: "Full Name",
 			cell: ({ row }) => {
-				if (!row) return null; // or return a placeholder
-				const name = row.getValue<string>("name") || "N/A";
-				const email = row.getValue<string>("email") || "N/A";
+				const name = row.getValue<string | null>("full_name") || "N/A";
+				const pic = row.original.pic;
 				return (
 					<div className="flex flex-row justify-start items-center gap-2">
 						<Image
-							src="/images/avatar.png"
+							src={pic || "/images/avatar.png"}
 							alt={name}
 							width={30}
 							height={30}
 							className="w-8 h-8 rounded-full"
 						/>
-						<span className="text-xs text-primary-6">{name}</span>
+						<span className="text-xs text-primary-6 capitalize">{name}</span>
 					</div>
 				);
 			},
@@ -397,17 +230,27 @@ const StaffTable = () => {
 			accessorKey: "role",
 			header: "Role",
 			cell: ({ row }) => {
-				const role = row.getValue<string>("role") || "Super Admin";
+				const role = row.getValue<string>("role");
 
-				return <span className="text-xs text-primary-6">{role}</span>;
+				// if role is null, empty, or "*", default to "Super Admin"
+				const displayRole = !role || role === "*" ? "Super Admin" : role;
+
+				return (
+					<span className="text-xs text-primary-6 capitalize">
+						{displayRole}
+					</span>
+				);
 			},
 		},
-
 		{
 			accessorKey: "status",
 			header: "Status",
 			cell: ({ row }) => {
-				const status = row.getValue<string>("status");
+				let status = row.getValue<string | null>("status");
+
+				// fallback: if status is null, show "inactive"
+				status = status ?? "inactive";
+
 				return (
 					<div className={`status ${status === "active" ? "green" : "red"}`}>
 						{status}
@@ -415,13 +258,16 @@ const StaffTable = () => {
 				);
 			},
 		},
-		{
-			accessorKey: "date",
-			header: "Last Login",
-			cell: ({ row }) => {
-				const date = row.getValue<string>("date");
 
-				return <span className="text-xs text-primary-6">{date}</span>;
+		{
+			accessorKey: "created_at",
+			header: "Created At",
+			cell: ({ row }) => {
+				const date = row.getValue<string>("created_at");
+
+				return (
+					<span className="text-xs text-primary-6">{formatDate(date)}</span>
+				);
 			},
 		},
 		{
@@ -454,167 +300,12 @@ const StaffTable = () => {
 			) : (
 				<StaffDataTable columns={columns} data={tableData} />
 			)}
-			{isEditModalOpen && (
-				<Modal
-					isOpen={isEditModalOpen}
-					onClose={closeEditModal}
-					title="Edit Staff">
-					<div className="bg-white p-0 rounded-lg  transition-transform ease-in-out form">
-						<div className="mt-3  pt-2">
-							<div className="flex flex-col gap-2">
-								<p className="text-xs text-primary-6">Full Name</p>
-								<Input
-									type="text"
-									placeholder="Enter Full Name"
-									className="focus:border-none mt-2"
-									value={editData.firstName}
-									onChange={(e) =>
-										setEditData({ ...editData, firstName: e.target.value })
-									}
-								/>
-								<p className="text-xs text-primary-6 mt-2">Email Address</p>
-								<Input
-									type="text"
-									placeholder="Enter Email Address"
-									className="focus:border-none mt-2"
-									value={editData.email}
-									onChange={(e) =>
-										setEditData({ ...editData, email: e.target.value })
-									}
-								/>
-								<p className="text-xs text-primary-6 mt-2">Phone number</p>
-								<Input
-									type="text"
-									placeholder="Enter Phone Number"
-									className="focus:border-none mt-2"
-									value={editData.lastName}
-									onChange={(e) =>
-										setEditData({ ...editData, lastName: e.target.value })
-									}
-								/>
-								<p className="text-xs text-primary-6 mt-2">Gender</p>
-								<Select>
-									<SelectTrigger className="w-full">
-										<SelectValue placeholder="Select gender" />
-									</SelectTrigger>
-									<SelectContent className="bg-white z-10 select text-gray-300">
-										<SelectItem value="light">Male</SelectItem>
-										<SelectItem value="dark">Female</SelectItem>
-									</SelectContent>
-								</Select>
-								<p className="text-xs text-primary-6 mt-2">Role</p>
-								<Select>
-									<SelectTrigger className="w-full">
-										<SelectValue placeholder="Select Role" />
-									</SelectTrigger>
-									<SelectContent className="bg-white z-10 select text-gray-300">
-										<SelectItem value="light">Admin</SelectItem>
-										<SelectItem value="dark">Customer Support</SelectItem>
-										<SelectItem value="system">Finance</SelectItem>
-									</SelectContent>
-								</Select>
-								<p className="text-xs text-primary-6 mt-2">Grade Level</p>
-								<Select>
-									<SelectTrigger className="w-full">
-										<SelectValue placeholder="Select level" />
-									</SelectTrigger>
-									<SelectContent className="bg-white z-10 select text-gray-300">
-										<SelectItem value="light">11</SelectItem>
-										<SelectItem value="dark">12</SelectItem>
-										<SelectItem value="system">13</SelectItem>
-									</SelectContent>
-								</Select>
-								<p className="text-xs text-primary-6 mt-2">Account Number</p>
-								<Input
-									type="text"
-									placeholder="Enter Account Number"
-									className="focus:border-none mt-2"
-									value={editData.lastName}
-									onChange={(e) =>
-										setEditData({ ...editData, lastName: e.target.value })
-									}
-								/>
-								<p className="text-xs text-primary-6 mt-2">Bank</p>
-								<Select>
-									<SelectTrigger className="w-full">
-										<SelectValue placeholder="Select Bank" />
-									</SelectTrigger>
-									<SelectContent className="bg-white z-10 select text-gray-300">
-										<SelectItem value="light">FCMB</SelectItem>
-										<SelectItem value="dark">UBA</SelectItem>
-										<SelectItem value="system">Fidelity</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-							<hr className="mt-4 mb-4 text-[#9F9E9E40]" color="#9F9E9E40" />
-							<div className="flex flex-row justify-end items-center gap-3 font-inter">
-								<Button
-									className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs"
-									onClick={closeEditModal}>
-									Cancel
-								</Button>
-								<Button
-									className="bg-primary-1 text-white font-inter text-xs"
-									disabled={isLoading}>
-									{isLoading ? "Updating Staff..." : "Update Staff"}
-								</Button>
-							</div>
-						</div>
-					</div>
-				</Modal>
-			)}
-
-			{isRestoreModalOpen && (
-				<Modal onClose={closeRestoreModal} isOpen={isRestoreModalOpen}>
-					<p className="mt-4">
-						Are you sure you want to suspend {selectedRow?.name}'s account?
-					</p>
-					<p className="text-sm text-primary-6">This can't be undone</p>
-					<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">
-						<Button
-							className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs"
-							onClick={closeRestoreModal}>
-							Cancel
-						</Button>
-						<Button
-							className="bg-[#F04F4A] text-white font-inter text-xs modal-delete"
-							onClick={async () => {
-								await suspendStaff(selectedRow.id);
-								closeRestoreModal();
-							}}>
-							Yes, Confirm
-						</Button>
-					</div>
-				</Modal>
-			)}
-
-			{isReactivateModalOpen && (
-				<Modal onClose={closeReactivateModal} isOpen={isReactivateModalOpen}>
-					<p className="mt-4">
-						Are you sure you want to reactivate {selectedRow?.name}'s account?
-					</p>
-					<p className="text-sm text-primary-6">This can't be undone</p>
-					<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">
-						<Button
-							className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs"
-							onClick={closeReactivateModal}>
-							Cancel
-						</Button>
-						<Button
-							className="bg-[#F04F4A] text-white font-inter text-xs modal-delete"
-							onClick={async () => {
-								await reactivateStaff(selectedRow.id);
-								closeReactivateModal();
-							}}>
-							Yes, Confirm
-						</Button>
-					</div>
-				</Modal>
-			)}
 
 			{isDeleteModalOpen && (
 				<Modal onClose={closeDeleteModal} isOpen={isDeleteModalOpen}>
-					<p>Are you sure you want to delete {selectedRow?.name}'s account?</p>
+					<p>
+						Are you sure you want to delete {selectedRow?.full_name}'s account?
+					</p>
 
 					<p className="text-sm text-primary-6">This can't be undone</p>
 					<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">

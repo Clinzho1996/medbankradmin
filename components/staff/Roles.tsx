@@ -7,7 +7,10 @@ import {
 	IconUserBolt,
 	IconX,
 } from "@tabler/icons-react";
-import { useState } from "react";
+import axios from "axios";
+import { getSession } from "next-auth/react";
+import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 import { Checkbox } from "../ui/checkbox";
 
 function Roles() {
@@ -15,50 +18,145 @@ function Roles() {
 	const [currentStep, setCurrentStep] = useState(1);
 	const [isEditMode, setIsEditMode] = useState(false);
 	const [roleData, setRoleData] = useState({
+		name: "",
 		title: "",
 		description: "",
-		staffs: [] as string[],
-		password: "FGEG23427_@%@=B2EDyyu",
-		permissions: [] as string[],
+		permission: [] as string[],
 	});
 	const [searchInput, setSearchInput] = useState("");
+	const [allPermissions, setAllPermissions] = useState<string[]>([]);
+	const [roles, setRoles] = useState<any[]>([]);
+	const [isLoading, setIsLoading] = useState(false);
 
-	// Sample staff data
-	const allStaffs = [
-		"dolapo.d@medbankr.com",
-		"stacy.a@medbankr.com",
-		"abass.o@medbankr.com",
-		"clinton.o@medbankr.com",
-		"emma.a@medbankr.com",
-	];
+	// Fetch all permissions
+	const fetchPermissions = async () => {
+		try {
+			const session = await getSession();
+			const accessToken = session?.accessToken;
 
-	// All available permissions
-	const allPermissions = [
-		"End User Management",
-		"Staff Management",
-		"Health Care Provider",
-		"Booking Handling",
-		"Document & Vault",
-		"Support & Operations",
-		"Content & Campaign",
-		"AI & Symptom Checker",
-		"Payment and Finance",
-		"Subscription",
-		"Analytics & Reporting",
-		"Family Account",
-		"Audit Trail",
-		"Compliance & Legal",
-		"System Settings",
-	];
+			if (!accessToken) {
+				console.error("No access token found.");
+				return;
+			}
 
-	const handleNextStep = () => {
+			const response = await axios.get(
+				"https://api.medbankr.ai/api/v1/administrator/permission/read/all",
+				{
+					headers: {
+						Accept: "application/json",
+						Authorization: `Bearer ${accessToken}`,
+					},
+				}
+			);
+
+			if (response.data.status === true) {
+				setAllPermissions(response.data.data);
+			}
+		} catch (error) {
+			console.error("Error fetching permissions:", error);
+			toast.error("Failed to fetch permissions");
+		}
+	};
+
+	// Fetch all roles
+	const fetchRoles = async () => {
+		try {
+			setIsLoading(true);
+			const session = await getSession();
+			const accessToken = session?.accessToken;
+
+			if (!accessToken) {
+				console.error("No access token found.");
+				return;
+			}
+
+			const response = await axios.get(
+				"https://api.medbankr.ai/api/v1/administrator/permission",
+				{
+					headers: {
+						Accept: "application/json",
+						Authorization: `Bearer ${accessToken}`,
+					},
+				}
+			);
+
+			if (response.data.status === true) {
+				setRoles(response.data.data);
+			}
+		} catch (error) {
+			console.error("Error fetching roles:", error);
+			toast.error("Failed to fetch roles");
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	useEffect(() => {
+		fetchPermissions();
+		fetchRoles();
+	}, []);
+
+	const handleNextStep = async () => {
 		if (currentStep < 3) {
 			setCurrentStep(currentStep + 1);
 		} else {
 			// Submit logic here
-			console.log("Submitting role:", roleData);
-			setIsModalOpen(false);
-			resetForm();
+			try {
+				const session = await getSession();
+				const accessToken = session?.accessToken;
+
+				if (!accessToken) {
+					toast.error("No access token found. Please log in again.");
+					return;
+				}
+
+				if (isEditMode) {
+					// Update existing role
+					const response = await axios.put(
+						`https://api.medbankr.ai/api/v1/permissions/update/${roleData.name}`,
+						roleData,
+						{
+							headers: {
+								Accept: "application/json",
+								Authorization: `Bearer ${accessToken}`,
+								"Content-Type": "application/json",
+							},
+						}
+					);
+
+					if (response.data.status === true) {
+						toast.success("Role updated successfully!");
+						fetchRoles(); // Refresh roles list
+					}
+				} else {
+					// Create new role
+					const response = await axios.post(
+						"https://api.medbankr.ai/api/v1/administrator/permission",
+						roleData,
+						{
+							headers: {
+								Accept: "application/json",
+								Authorization: `Bearer ${accessToken}`,
+								"Content-Type": "application/json",
+							},
+						}
+					);
+
+					if (response.data.status === true) {
+						toast.success("Role created successfully!");
+						fetchRoles(); // Refresh roles list
+					}
+				}
+
+				setIsModalOpen(false);
+				resetForm();
+			} catch (error: any) {
+				console.error("Error saving role:", error);
+				const errorMessage =
+					error.response?.data?.message ||
+					"Failed to save role. Please try again.";
+				toast.error(errorMessage);
+			}
 		}
 	};
 
@@ -70,75 +168,71 @@ function Roles() {
 
 	const resetForm = () => {
 		setRoleData({
+			name: "",
 			title: "",
 			description: "",
-			staffs: [],
-			password: generatePassword(),
-			permissions: [],
+			permission: [],
 		});
 		setCurrentStep(1);
 		setIsEditMode(false);
-	};
-
-	const generatePassword = () => {
-		const chars =
-			"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
-		let password = "";
-		for (let i = 0; i < 12; i++) {
-			password += chars.charAt(Math.floor(Math.random() * chars.length));
-		}
-		return password;
-	};
-
-	const handleAddStaff = (staff: string) => {
-		if (!roleData.staffs.includes(staff)) {
-			setRoleData({
-				...roleData,
-				staffs: [...roleData.staffs, staff],
-			});
-		}
-		setSearchInput("");
-	};
-
-	const handleRemoveStaff = (staff: string) => {
-		setRoleData({
-			...roleData,
-			staffs: roleData.staffs.filter((s) => s !== staff),
-		});
 	};
 
 	const handlePermissionChange = (permission: string, isChecked: boolean) => {
 		if (isChecked) {
 			setRoleData({
 				...roleData,
-				permissions: [...roleData.permissions, permission],
+				permission: [...roleData.permission, permission],
 			});
 		} else {
 			setRoleData({
 				...roleData,
-				permissions: roleData.permissions.filter((p) => p !== permission),
+				permission: roleData.permission.filter((p) => p !== permission),
 			});
 		}
 	};
 
-	type RoleType = {
-		title: string;
-		description?: string;
-		staffs?: string[];
-		password?: string;
-		permissions?: string[];
-	};
-
-	const openEditModal = (role: RoleType) => {
+	const openEditModal = (role: any) => {
 		setIsEditMode(true);
 		setRoleData({
+			name: role.name,
 			title: role.title,
-			description: role.description || "",
-			staffs: role.staffs || [],
-			password: role.password || generatePassword(),
-			permissions: role.permissions || [],
+			description: role.description,
+			permission: role.permission,
 		});
 		setIsModalOpen(true);
+	};
+
+	const deleteRole = async (roleName: string) => {
+		try {
+			const session = await getSession();
+			const accessToken = session?.accessToken;
+
+			if (!accessToken) {
+				toast.error("No access token found. Please log in again.");
+				return;
+			}
+
+			const response = await axios.delete(
+				`https://api.medbankr.ai/api/v1/permissions/delete/${roleName}`,
+				{
+					headers: {
+						Accept: "application/json",
+						Authorization: `Bearer ${accessToken}`,
+					},
+				}
+			);
+
+			if (response.data.status === true) {
+				toast.success("Role deleted successfully!");
+				fetchRoles(); // Refresh roles list
+			}
+		} catch (error: any) {
+			console.error("Error deleting role:", error);
+			const errorMessage =
+				error.response?.data?.message ||
+				"Failed to delete role. Please try again.";
+			toast.error(errorMessage);
+		}
 	};
 
 	return (
@@ -216,7 +310,22 @@ function Roles() {
 									<div className="space-y-4 bg-white shadow-lg rounded-lg p-3">
 										<div>
 											<label className="block text-sm font-medium text-gray-700 mb-1">
-												Title/name of Role
+												Name (Internal ID)
+											</label>
+											<input
+												type="text"
+												value={roleData.name}
+												onChange={(e) =>
+													setRoleData({ ...roleData, name: e.target.value })
+												}
+												placeholder="Enter internal name (e.g., super_admin)"
+												className="w-full p-2 border rounded-md"
+												disabled={isEditMode} // Don't allow editing name for existing roles
+											/>
+										</div>
+										<div>
+											<label className="block text-sm font-medium text-gray-700 mb-1">
+												Title/Display Name
 											</label>
 											<input
 												type="text"
@@ -224,7 +333,7 @@ function Roles() {
 												onChange={(e) =>
 													setRoleData({ ...roleData, title: e.target.value })
 												}
-												placeholder="Enter name of role"
+												placeholder="Enter display name (e.g., Super Admin)"
 												className="w-full p-2 border rounded-md"
 											/>
 										</div>
@@ -246,83 +355,6 @@ function Roles() {
 										</div>
 									</div>
 								</div>
-
-								<div className="p-4 border rounded-lg shadow-sm bg-[#F6F8FA]">
-									<h3 className="font-medium mb-3">Assign Role to staffs:</h3>
-									<div className="space-y-3 bg-white shadow-lg p-3 rounded-lg">
-										<input
-											type="text"
-											value={searchInput}
-											onChange={(e) => setSearchInput(e.target.value)}
-											onKeyDown={(e) => {
-												if (e.key === "Enter" && searchInput) {
-													handleAddStaff(searchInput);
-												}
-											}}
-											placeholder="Search existing users by name, ID, email and press Enter to add them"
-											className="w-full p-2 border rounded-md mb-2"
-										/>
-										<div className="flex flex-wrap gap-2">
-											{roleData.staffs.map((staff) => (
-												<div
-													key={staff}
-													className="flex items-center bg-gray-100 rounded-full px-3 py-1 text-sm">
-													{staff}
-													<button
-														onClick={() => handleRemoveStaff(staff)}
-														className="ml-2 text-gray-500 hover:text-gray-700">
-														<IconX size={16} />
-													</button>
-												</div>
-											))}
-										</div>
-										<div className="space-y-2">
-											{allStaffs
-												.filter(
-													(staff) =>
-														staff.includes(searchInput) &&
-														!roleData.staffs.includes(staff)
-												)
-												.map((staff) => (
-													<div
-														key={staff}
-														className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer"
-														onClick={() => handleAddStaff(staff)}>
-														<span>{staff}</span>
-														<IconCirclePlus
-															size={18}
-															className="text-primary"
-														/>
-													</div>
-												))}
-										</div>
-									</div>
-								</div>
-
-								<div className="p-4 border rounded-lg shadow-sm bg-[#F6F8FA]">
-									<h3 className="font-medium mb-3">
-										Temporary Password (System generate password or manually
-										set)
-									</h3>
-									<input
-										type="text"
-										value={roleData.password}
-										onChange={(e) =>
-											setRoleData({ ...roleData, password: e.target.value })
-										}
-										className="w-full p-2 border focus:border-secondary-1 rounded-md"
-									/>
-									<button
-										onClick={() =>
-											setRoleData({
-												...roleData,
-												password: generatePassword(),
-											})
-										}
-										className="mt-2 text-sm text-secondary-1 hover:underline">
-										Generate new password
-									</button>
-								</div>
 							</div>
 						)}
 
@@ -336,7 +368,7 @@ function Roles() {
 									</p>
 									<div className="bg-white p-3 shadow-lg rounded-lg">
 										<h4 className="font-medium mb-2 text-xs text-gray-500">
-											MODULES
+											PERMISSIONS
 										</h4>
 										<div className="space-y-3">
 											{allPermissions.map((permission) => (
@@ -351,7 +383,7 @@ function Roles() {
 
 													<Checkbox
 														id={permission}
-														checked={roleData.permissions.includes(permission)}
+														checked={roleData.permission.includes(permission)}
 														onCheckedChange={(checked) =>
 															handlePermissionChange(
 																permission,
@@ -374,7 +406,13 @@ function Roles() {
 									<h3 className="font-medium mb-3">Basic Details</h3>
 									<div className="space-y-2 bg-white p-3 shadow-lg rounded-lg">
 										<div>
-											<p className="text-sm text-gray-500">Role Title</p>
+											<p className="text-sm text-gray-500">
+												Name (Internal ID)
+											</p>
+											<p className="font-medium">{roleData.name}</p>
+										</div>
+										<div>
+											<p className="text-sm text-gray-500">Display Title</p>
 											<p className="font-medium">{roleData.title}</p>
 										</div>
 										<div>
@@ -385,32 +423,10 @@ function Roles() {
 								</div>
 
 								<div className="p-4 border rounded-lg shadow-sm bg-[#F6F8FA]">
-									<h3 className="font-medium mb-3">Assigned Staff</h3>
-									<div className="space-y-2 bg-white p-3 shadow-lg rounded-lg">
-										{roleData.staffs.length > 0 ? (
-											roleData.staffs.map((staff) => (
-												<p key={staff} className="font-medium">
-													{staff}
-												</p>
-											))
-										) : (
-											<p className="text-sm text-gray-500">No staff assigned</p>
-										)}
-									</div>
-								</div>
-
-								<div className="p-4 border rounded-lg shadow-sm bg-[#F6F8FA]">
-									<h3 className="font-medium mb-3">Temporary Password</h3>
-									<p className="font-mono bg-white shadow-lg p-2 rounded-lg">
-										{roleData.password}
-									</p>
-								</div>
-
-								<div className="p-4 border rounded-lg shadow-sm bg-[#F6F8FA]">
 									<h3 className="font-medium mb-3">Permissions</h3>
 									<div className="space-y-2 bg-white rounded-lg p-3 shadow-lg">
-										{roleData.permissions.length > 0 ? (
-											roleData.permissions.map((permission) => (
+										{roleData.permission.length > 0 ? (
+											roleData.permission.map((permission) => (
 												<p key={permission} className="font-medium">
 													{permission}
 												</p>
@@ -443,7 +459,7 @@ function Roles() {
 								{currentStep === 3
 									? isEditMode
 										? "Update Role"
-										: "Confirm Creation"
+										: "Create Role"
 									: "Next"}
 							</button>
 						</div>
@@ -457,69 +473,75 @@ function Roles() {
 				</p>
 			</div>
 
-			<div className="flex flex-row flex-wrap justify-start items-center gap-3 w-full">
-				<button
-					onClick={() => {
-						setIsModalOpen(true);
-						setIsEditMode(false);
-						setRoleData({
-							title: "",
-							description: "",
-							staffs: [],
-							password: generatePassword(),
-							permissions: [],
-						});
-					}}
-					className="flex flex-col gap-3 justify-start items-start bg-[#F6F8FA] p-3 border border-secondary-1 rounded-lg border-dashed w-full sm:w-[24%]">
-					<IconCirclePlus color="#2fe0a8" />
+			{isLoading ? (
+				<div className="flex justify-center items-center py-8">
+					<p>Loading roles...</p>
+				</div>
+			) : (
+				<div className="flex flex-row flex-wrap justify-start items-center gap-3 w-full">
+					<button
+						onClick={() => {
+							setIsModalOpen(true);
+							setIsEditMode(false);
+							setRoleData({
+								name: "",
+								title: "",
+								description: "",
+								permission: [],
+							});
+						}}
+						className="flex flex-col gap-3 justify-start items-start bg-[#F6F8FA] p-3 border border-secondary-1 rounded-lg border-dashed w-full sm:w-[24%]">
+						<IconCirclePlus color="#2fe0a8" />
 
-					<p className="text-dark-1 text-sm text-left">Add new role</p>
+						<p className="text-dark-1 text-sm text-left">Add new role</p>
 
-					<p className="text-xs text-[#6B7280] text-left">
-						Adjust permission for this role.
-					</p>
-				</button>
-
-				{[
-					{ title: "Admin", staffCount: 3 },
-					{ title: "User Support Agent", staffCount: 3 },
-					{ title: "Operational Manager", staffCount: 3 },
-					{ title: "Marketing Manager", staffCount: 3 },
-					{ title: "Legal Team", staffCount: 3 },
-					{ title: "Content & AI Manager", staffCount: 3 },
-					{ title: "Customer Support", staffCount: 3 },
-				].map((role, index) => (
-					<div
-						key={index}
-						className="flex flex-col gap-3 justify-start items-start bg-white p-3 border-[3px] shadow-lg shadow-[#2F30370D] rounded-lg w-full sm:w-[24%]">
-						<div className="flex flex-row justify-between items-center w-full">
-							<div>
-								{role.title === "Admin" ? (
-									<IconShieldBolt color="#6B7280" />
-								) : (
-									<IconUserBolt color="#6B7280" />
-								)}
-							</div>
-							<div>
-								<IconEdit
-									color="#6B7280"
-									className="cursor-pointer"
-									onClick={() => openEditModal(role)}
-								/>
-							</div>
-						</div>
-						<p className="text-dark-1 text-sm text-left">
-							{role.title}{" "}
-							<span className="text-xs text-[#6B7280] text-left">
-								({role.staffCount})
-							</span>
-						</p>
 						<p className="text-xs text-[#6B7280] text-left">
-							Limited access to some modules
+							Adjust permission for this role.
 						</p>
-					</div>
-				))}
-			</div>
+					</button>
+
+					{roles.map((role) => (
+						<div
+							key={role._id}
+							className="flex flex-col gap-3 justify-start items-start bg-white p-3 border-[3px] shadow-lg shadow-[#2F30370D] rounded-lg w-full sm:w-[24%]">
+							<div className="flex flex-row justify-between items-center w-full">
+								<div>
+									{role.name === "super" ? (
+										<IconShieldBolt color="#6B7280" />
+									) : (
+										<IconUserBolt color="#6B7280" />
+									)}
+								</div>
+								<div className="flex gap-2">
+									<IconEdit
+										color="#6B7280"
+										className="cursor-pointer"
+										onClick={() => openEditModal(role)}
+									/>
+									{role.name !== "super" && ( // Don't allow deleting super admin role
+										<IconX
+											color="#6B7280"
+											className="cursor-pointer"
+											onClick={() => deleteRole(role.name)}
+										/>
+									)}
+								</div>
+							</div>
+							<p className="text-dark-1 text-sm text-left">
+								{role.title}{" "}
+								<span className="text-xs text-[#6B7280] text-left">
+									({role.count || 0})
+								</span>
+							</p>
+							<p className="text-xs text-[#6B7280] text-left">
+								{role.permission.includes("*")
+									? "Full access to all modules"
+									: `Access to ${role.permission.length} permissions`}
+							</p>
+						</div>
+					))}
+				</div>
+			)}
 		</div>
 	);
 }
