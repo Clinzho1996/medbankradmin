@@ -31,7 +31,6 @@ interface Folder {
 	created_by: string;
 	name: string;
 	lock: boolean;
-	child: any[];
 	parent: string | null;
 	createdAt: string;
 	updatedAt: string;
