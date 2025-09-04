@@ -12,48 +12,50 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { DocumentDataTables } from "./document-table";
 
-interface ApiResponse {
-	data: {
-		data: Transaction[];
-	};
+interface Folder {
+	_id: string;
+	access: string;
+	folder_description: string;
+	user_id: string;
+	created_by: string;
+	name: string;
+	lock: boolean;
+	child: any[];
+	parent: string | null;
+	createdAt: string;
+	updatedAt: string;
+	__v: number;
+	current_size: number;
+	total_file: number;
 }
 
-const trafficData = [
-	{
-		platform: "IOS",
-		value: 143382,
-		color: "#8B5CF6",
-		barCount: 30,
-	},
-	{
-		platform: "Android",
-		value: 87974,
-		color: "#34D399",
-		barCount: 40,
-	},
-	{
-		platform: "Web",
-		value: 87974,
-		color: "#F59E0B",
-		barCount: 50,
-	},
-];
-
-export type Transaction = {
-	id: string;
-	user: { first_name: string; last_name: string; other_name: string };
-	name: string;
-	first_name: string;
-	last_name: string;
-	other_name: string;
-	amount: string;
-	date: string;
-	created: string;
-	created_at: string;
-	ref_id: string;
-	status: string;
-	narration: string;
-};
+interface ApiResponse {
+	status: boolean;
+	message: string;
+	data: {
+		overview: {
+			total_storage: number;
+			total_file: number;
+			avg_file_size: number;
+			storage_growth: {
+				total: number;
+				filesThisWeek: number;
+				filesLastWeek: number;
+				percentChange: number;
+			};
+			backup_status: string;
+			last_backup_date: string | null;
+		};
+		folder: Folder[];
+		pagination: {
+			total: number;
+			page: number;
+			limit: number;
+			pages: number;
+		};
+	};
+	error: string;
+}
 
 declare module "next-auth" {
 	interface Session {
@@ -63,13 +65,13 @@ declare module "next-auth" {
 
 const DocumentTable = () => {
 	const [isLoading, setIsLoading] = useState<boolean>(false);
-	const [tableData, setTableData] = useState<Transaction[]>([]);
+	const [tableData, setTableData] = useState<Folder[]>([]);
 	const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
-	const [selectedRow, setSelectedRow] = useState<any>(null);
+	const [selectedRow, setSelectedRow] = useState<Folder | null>(null);
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
-	const openDeleteModal = (row: any) => {
-		setSelectedRow(row.original); // Use row.original to store the full row data
+	const openDeleteModal = (row: Folder) => {
+		setSelectedRow(row);
 		setDeleteModalOpen(true);
 	};
 
@@ -77,7 +79,7 @@ const DocumentTable = () => {
 		setDeleteModalOpen(false);
 	};
 
-	const fetchTransactionHistory = async () => {
+	const fetchFolders = async () => {
 		try {
 			setIsLoading(true);
 			const session = await getSession();
@@ -89,47 +91,29 @@ const DocumentTable = () => {
 			}
 
 			const response = await axios.get<ApiResponse>(
-				"https://api.kuditrak.ng/api/v1/transaction/all",
+				"https://api.medbankr.ai/api/v1/administrator/vault",
 				{
 					headers: {
 						Accept: "application/json",
-						Authorization: `Bearer ${session?.accessToken}`,
+						Authorization: `Bearer ${session.accessToken}`,
 					},
 				}
 			);
 
-			const fetchedData = response.data.data.data;
-
-			console.log("Transaction Data:", fetchedData);
-
-			const mappedData = fetchedData.map((item) => ({
-				id: item.id,
-				name: `${item.user.first_name} ${item.user.last_name} ${
-					item.user.other_name || ""
-				}`,
-				first_name: item.user.first_name,
-				user: item.user,
-				last_name: item.user.last_name,
-				other_name: item.user.other_name,
-				amount: item.amount,
-				date: item.date,
-				narration: item.narration,
-				ref_id: item.ref_id,
-				created: item.created_at,
-				created_at: item.created_at,
-				status: item.ref_id ? "completed" : "pending",
-			}));
-
-			setTableData(mappedData);
+			if (response.data.status === true) {
+				const folders = response.data.data.folder;
+				console.log("Folders Data:", folders);
+				setTableData(folders);
+			}
 		} catch (error) {
-			console.error("Error fetching user data:", error);
+			console.error("Error fetching folder data:", error);
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
 	useEffect(() => {
-		fetchTransactionHistory();
+		fetchFolders();
 	}, []);
 
 	const formatDate = (rawDate: string) => {
@@ -137,21 +121,32 @@ const DocumentTable = () => {
 			year: "numeric",
 			month: "long",
 			day: "numeric",
-		}; // Correct types
-		const parsedDate = new Date(rawDate); // Ensure the date is parsed correctly
+		};
+		const parsedDate = new Date(rawDate);
 		return new Intl.DateTimeFormat("en-US", options).format(parsedDate);
 	};
 
-	const renderBars = (filled: number, total: number, colors: string[]) => {
+	const calculatePercentage = (currentSize: number): number => {
+		// Assuming max storage is 100MB for demonstration
+		// You might want to get this from the API response or use a different calculation
+		const maxStorage = 100;
+		return Math.min(100, Math.round((currentSize / maxStorage) * 100));
+	};
+
+	const renderBars = (percentage: number) => {
+		const totalBars = 20;
+		const filledBars = Math.round((totalBars * percentage) / 100);
+		const colors = ["#8B5CF6", "#34D399", "#F59E0B", "#EF4444", "#3B82F6"];
+
 		return (
 			<div className="flex flex-wrap gap-1 mt-2">
-				{Array.from({ length: total }).map((_, index) => (
+				{Array.from({ length: totalBars }).map((_, index) => (
 					<div
 						key={index}
 						className="w-[6px] h-12 rounded-sm"
 						style={{
 							backgroundColor:
-								index < filled ? colors[index % colors.length] : "#E5E7EB",
+								index < filledBars ? colors[index % colors.length] : "#E5E7EB",
 						}}
 					/>
 				))}
@@ -159,7 +154,7 @@ const DocumentTable = () => {
 		);
 	};
 
-	const columns: ColumnDef<Transaction>[] = [
+	const columns: ColumnDef<Folder>[] = [
 		{
 			id: "select",
 			header: ({ table }) => (
@@ -183,11 +178,10 @@ const DocumentTable = () => {
 			),
 		},
 		{
-			accessorKey: "id",
+			accessorKey: "_id",
 			header: "ID",
 			cell: ({ row }) => {
-				const id = row.getValue<string>("id");
-
+				const id = row.original._id;
 				return (
 					<span className="text-xs text-primary-6">
 						FOL-{id.length > 10 ? `${id.slice(0, 10)}...` : id}
@@ -199,62 +193,53 @@ const DocumentTable = () => {
 			accessorKey: "name",
 			header: "Folder Name",
 			cell: ({ row }) => {
-				if (!row) return null; // or return a placeholder
-				const email = row.getValue<string>("email") || "Lab Results";
+				const folder = row.original;
 				return (
 					<div className="flex flex-row justify-start items-center gap-2">
 						<Image
 							src="/images/fold2.png"
-							alt={email}
+							alt={folder.name}
 							width={30}
 							height={30}
 							className="w-8 h-8 rounded-md"
 						/>
-						<span className="text-xs text-primary-6">{email}</span>
+						<span className="text-xs text-primary-6">{folder.name}</span>
 					</div>
 				);
 			},
 		},
-
 		{
-			accessorKey: "amount",
+			accessorKey: "total_file",
 			header: "Number of Files",
 			cell: ({ row }) => {
-				const amount = row.getValue<string>("amount");
-
-				return <span className="text-xs text-primary-6">{amount}</span>;
+				const totalFiles = row.original.total_file;
+				return <span className="text-xs text-primary-6">{totalFiles}</span>;
 			},
 		},
 		{
-			accessorKey: "created",
+			accessorKey: "createdAt",
 			header: "Date Created",
 			cell: ({ row }) => {
-				const created = row.getValue<string>("created");
-
+				const createdAt = row.original.createdAt;
 				return (
-					<span className="text-xs text-primary-6">{formatDate(created)}</span>
+					<span className="text-xs text-primary-6">
+						{formatDate(createdAt)}
+					</span>
 				);
 			},
 		},
-
 		{
-			accessorKey: "narration",
+			id: "percentage",
 			header: "Percentage",
 			cell: ({ row }) => {
-				// Generate random percentage between 0 and 100 for demonstration
-				const percentage = Math.min(100, Math.round(Math.random() * 120)); // Ensures max 100%
-				const colors = ["#8B5CF6", "#34D399", "#F59E0B", "#EF4444", "#3B82F6"]; // Different colors
+				const folder = row.original;
+				const percentage = calculatePercentage(folder.current_size);
 
 				return (
 					<div className="flex flex-row justify-start items-center gap-4">
 						<span className="text-xs text-primary-6">
-							{renderBars(
-								Math.round((20 * percentage) / 100), // 20 bars total
-								20, // Total bars
-								colors
-							)}
+							{renderBars(percentage)}
 						</span>
-
 						<span className="bg-[#EFF1F5] p-2 border rounded-lg text-[#5B88FC]">
 							{percentage}%
 						</span>
@@ -262,18 +247,16 @@ const DocumentTable = () => {
 				);
 			},
 		},
-
 		{
 			id: "actions",
 			header: "Action",
 			cell: ({ row }) => {
-				const actions = row.original;
-
+				const folder = row.original;
 				return (
 					<div className="flex flex-row justify-start items-center gap-5">
 						<Button
 							className="border-[#E8E8E8] border-[1px] text-sm font-medium text-[#6B7280] font-inter"
-							onClick={() => openDeleteModal(row)}>
+							onClick={() => openDeleteModal(folder)}>
 							View Details
 						</Button>
 					</div>
@@ -290,77 +273,82 @@ const DocumentTable = () => {
 				<DocumentDataTables columns={columns} data={tableData} />
 			)}
 
-			{isDeleteModalOpen && (
+			{isDeleteModalOpen && selectedRow && (
 				<Modal onClose={closeDeleteModal} isOpen={isDeleteModalOpen}>
 					<div className="flex flex-col gap-4 w-full sm:w-[500px]">
 						<div className="border-y p-3">
-							<p className="text-xs text-[#6C7278]">AMOUNT</p>
-
+							<p className="text-xs text-[#6C7278]">FOLDER SIZE</p>
 							<div className="flex flex-row justify-start items-center gap-4">
-								<span className=" text-dark-1 text-sm">
-									₦{selectedRow?.amount}
+								<span className="text-dark-1 text-sm">
+									{selectedRow.current_size.toFixed(2)} MB
 								</span>
-								<span className="status green">{selectedRow?.status}</span>
+								<span className="status green">
+									{selectedRow.lock ? "Locked" : "Unlocked"}
+								</span>
 							</div>
 						</div>
 
 						<div className="border-b pb-3 px-3 flex flex-row justify-start items-center gap-10">
 							<div className="flex flex-col justify-start gap-1">
-								<p className="text-xs text-[#6C7278]">Transaction ID</p>
-								<span className=" text-dark-1 text-sm">
-									{selectedRow?.id.length > 10
-										? selectedRow?.id.slice(0, 10) + "..."
-										: selectedRow?.id}
+								<p className="text-xs text-[#6C7278]">Folder ID</p>
+								<span className="text-dark-1 text-sm">
+									{selectedRow._id.length > 10
+										? selectedRow._id.slice(0, 10) + "..."
+										: selectedRow._id}
 								</span>
 							</div>
 							<p className="text-xs text-[#6C7278]">|</p>
 							<div className="flex flex-col justify-start gap-1">
-								<p className="text-xs text-[#6C7278]">Transaction Date</p>
-								<span className=" text-dark-1 text-sm">
-									{selectedRow?.created}
+								<p className="text-xs text-[#6C7278]">Created Date</p>
+								<span className="text-dark-1 text-sm">
+									{formatDate(selectedRow.createdAt)}
 								</span>
 							</div>
 						</div>
 
 						<div className="border-b pb-3 px-3 flex flex-row justify-start items-center gap-10 shadow-lg">
 							<div className="flex flex-col justify-start gap-1">
-								<p className="text-dark-1 text-xs ">Transaction Details</p>
+								<p className="text-dark-1 text-xs ">Folder Details</p>
 							</div>
 						</div>
 
 						<div className="border border-secondary-1 rounded-lg p-3 flex flex-col gap-4 shadow-lg shadow-[#E4E5E73D]">
 							<div className="flex flex-row justify-between items-center">
-								<p className="text-xs text-[#6C7278]">Sender ID</p>
-								<p className="text-sm text-dark-1">{selectedRow?.id}</p>
-							</div>
-
-							<div className="flex flex-row justify-between items-center">
-								<p className="text-xs text-[#6C7278]">Sender Name</p>
-								<p className="text-sm text-dark-1">{selectedRow?.name}</p>
-							</div>
-
-							<div className="flex flex-row justify-between items-center">
-								<p className="text-xs text-[#6C7278]">Sender Email</p>
-								<p className="text-sm text-dark-1">
-									{selectedRow?.email}{" "}
-									<span className="text-xs text-[#6C7278]">Not Provided</span>
-								</p>
-							</div>
-							<div className="flex flex-row justify-between items-center">
-								<p className="text-xs text-[#6C7278]">Type</p>
-								<p className="text-sm text-dark-1">{selectedRow?.narration}</p>
+								<p className="text-xs text-[#6C7278]">Folder Name</p>
+								<p className="text-sm text-dark-1">{selectedRow.name}</p>
 							</div>
 
 							<div className="flex flex-row justify-between items-center">
 								<p className="text-xs text-[#6C7278]">Description</p>
 								<p className="text-sm text-dark-1">
-									Premium Individual - Monthly
+									{selectedRow.folder_description}
 								</p>
 							</div>
 
 							<div className="flex flex-row justify-between items-center">
-								<p className="text-xs text-[#6C7278]">Payment Method</p>
-								<p className="text-sm text-dark-1">Debit Card</p>
+								<p className="text-xs text-[#6C7278]">Access Level</p>
+								<p className="text-sm text-dark-1 capitalize">
+									{selectedRow.access}
+								</p>
+							</div>
+
+							<div className="flex flex-row justify-between items-center">
+								<p className="text-xs text-[#6C7278]">Number of Files</p>
+								<p className="text-sm text-dark-1">{selectedRow.total_file}</p>
+							</div>
+
+							<div className="flex flex-row justify-between items-center">
+								<p className="text-xs text-[#6C7278]">Current Size</p>
+								<p className="text-sm text-dark-1">
+									{selectedRow.current_size.toFixed(2)} MB
+								</p>
+							</div>
+
+							<div className="flex flex-row justify-between items-center">
+								<p className="text-xs text-[#6C7278]">Lock Status</p>
+								<p className="text-sm text-dark-1">
+									{selectedRow.lock ? "Locked" : "Unlocked"}
+								</p>
 							</div>
 						</div>
 
@@ -371,7 +359,7 @@ const DocumentTable = () => {
 								Cancel
 							</Button>
 							<Button
-								className="bg-secondary-1  text-dark-1 font-inter text-xs"
+								className="bg-secondary-1 text-dark-1 font-inter text-xs"
 								onClick={() => {
 									closeDeleteModal();
 								}}>
