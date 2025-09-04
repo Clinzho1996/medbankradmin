@@ -52,6 +52,15 @@ interface DataTableProps<TData, TValue> {
 	data: TData[];
 }
 
+interface Role {
+	_id: string;
+	name: string;
+	title?: string;
+	description: string;
+	permission: string[];
+	count?: number;
+}
+
 interface ApiResponse {
 	id: string;
 	first_name: string;
@@ -85,6 +94,8 @@ export function StaffDataTable<TData, TValue>({
 	const [tableData, setTableData] = useState<TData[]>(data);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isAdding, setIsAdding] = useState(false);
+	const [roles, setRoles] = useState<Role[]>([]);
+	const [isLoadingRoles, setIsLoadingRoles] = useState(false);
 
 	const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
@@ -95,9 +106,50 @@ export function StaffDataTable<TData, TValue>({
 		role: "",
 	});
 
+	// Fetch roles from API
+	const fetchRoles = async () => {
+		try {
+			setIsLoadingRoles(true);
+			const session = await getSession();
+			const accessToken = session?.accessToken;
+
+			if (!accessToken) {
+				console.error("No access token found.");
+				return;
+			}
+
+			const response = await axios.get(
+				"https://api.medbankr.ai/api/v1/administrator/permission",
+				{
+					headers: {
+						Accept: "application/json",
+						Authorization: `Bearer ${accessToken}`,
+					},
+				}
+			);
+
+			if (response.data.status === true) {
+				setRoles(response.data.data);
+			}
+		} catch (error) {
+			console.error("Error fetching roles:", error);
+			toast.error("Failed to fetch roles");
+		} finally {
+			setIsLoadingRoles(false);
+		}
+	};
+
+	useEffect(() => {
+		fetchRoles();
+	}, []);
+
 	const openModal = () => setModalOpen(true);
 	const closeModal = () => setModalOpen(false);
-	const openAddModal = () => setAddModalOpen(true);
+	const openAddModal = () => {
+		setAddModalOpen(true);
+		// Fetch roles again to ensure we have the latest data
+		fetchRoles();
+	};
 	const closeAddModal = () => {
 		setAddModalOpen(false);
 		setNewStaffData({
@@ -513,20 +565,26 @@ export function StaffDataTable<TData, TValue>({
 									}
 								/>
 								<p className="text-xs text-primary-6 mt-2">Role</p>
-								<Select
-									value={newStaffData.role}
-									onValueChange={(value) =>
-										setNewStaffData({ ...newStaffData, role: value })
-									}>
-									<SelectTrigger className="w-full">
-										<SelectValue placeholder="Select role" />
-									</SelectTrigger>
-									<SelectContent className="bg-white z-10 select text-gray-300">
-										<SelectItem value="*">Super Admin</SelectItem>
-										<SelectItem value="admin">Admin</SelectItem>
-										<SelectItem value="member">Member</SelectItem>
-									</SelectContent>
-								</Select>
+								{isLoadingRoles ? (
+									<p className="text-xs text-gray-500">Loading roles...</p>
+								) : (
+									<Select
+										value={newStaffData.role}
+										onValueChange={(value) =>
+											setNewStaffData({ ...newStaffData, role: value })
+										}>
+										<SelectTrigger className="w-full">
+											<SelectValue placeholder="Select role" />
+										</SelectTrigger>
+										<SelectContent className="bg-white z-10 select text-gray-300">
+											{roles.map((role) => (
+												<SelectItem key={role._id} value={role.name}>
+													{role.title || role.name}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								)}
 							</div>
 							<hr className="mt-4 mb-4 text-[#9F9E9E40]" color="#9F9E9E40" />
 							<div className="flex flex-row justify-end items-center gap-3 font-inter">
@@ -539,7 +597,10 @@ export function StaffDataTable<TData, TValue>({
 									className="bg-primary-1 text-white font-inter text-xs"
 									onClick={addStaff}
 									disabled={
-										isAdding || !newStaffData.name || !newStaffData.email
+										isAdding ||
+										!newStaffData.name ||
+										!newStaffData.email ||
+										!newStaffData.role
 									}>
 									{isAdding ? "Adding Staff..." : "Add Staff"}
 								</Button>

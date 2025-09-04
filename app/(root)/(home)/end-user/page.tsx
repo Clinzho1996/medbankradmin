@@ -2,11 +2,28 @@
 
 import HeaderBox from "@/components/HeaderBox";
 import StatCard from "@/components/StatCard";
-import EndUserTable, { EndUser } from "@/config/end-user-columns";
+import EndUserTable from "@/config/end-user-columns";
 import axios from "axios";
 import { getSession } from "next-auth/react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+
+export type EndUser = {
+	id: string;
+	_id: string;
+	createdAt: string;
+	public_id?: string;
+	full_name: string | null;
+	profile_pic?: string | null;
+	email: string;
+	status: string;
+	date_of_birth: string | null;
+	gender: string | null;
+	created_at: string;
+	verified: boolean;
+	role: string;
+	pic?: string | null;
+};
 
 interface ApiResponse {
 	status: boolean;
@@ -23,7 +40,7 @@ interface ApiResponse {
 		limit: number;
 		pages: number;
 	};
-	filters: Record<string, any>;
+	filters: Record<string, unknown>;
 }
 function EndUserPage() {
 	const [isLoading, setIsLoading] = useState(false);
@@ -52,19 +69,55 @@ function EndUserPage() {
 
 			if (response.data.status === true) {
 				// Map the API response to match the `EndUser` type
-				const formattedData = response.data.data.map((user: any) => ({
-					id: user._id,
-					public_id: user.public_id,
-					pic: user.profile_pic,
-					full_name: user.full_name,
-					email: user.email,
-					status: user.status,
-					date_of_birth: user.date_of_birth,
-					gender: user.gender,
-					created_at: user.createdAt,
-					verified: user.verified,
-					role: user.role,
-				}));
+				interface ApiUser {
+					_id: string;
+					createdAt: string;
+					public_id?: string;
+					profile_pic?: string | null;
+					full_name: string | null;
+					email: string;
+					status: string;
+					date_of_birth: string | null;
+					gender: string | null;
+					verified: boolean;
+					role: string;
+				}
+
+				interface FormattedUser {
+					id: string;
+					_id: string;
+					createdAt: string;
+					public_id?: string;
+					pic?: string | null;
+					full_name: string | null;
+					email: string;
+					status: string;
+					date_of_birth: string | null;
+					gender: string | null;
+					created_at: string;
+					verified: boolean;
+					role: string;
+				}
+
+				const formattedData: FormattedUser[] = (
+					response.data.data as ApiUser[]
+				).map(
+					(user: ApiUser): FormattedUser => ({
+						id: user._id,
+						_id: user._id,
+						createdAt: user.createdAt,
+						public_id: user.public_id,
+						pic: user.profile_pic,
+						full_name: user.full_name,
+						email: user.email,
+						status: user.status,
+						date_of_birth: user.date_of_birth,
+						gender: user.gender,
+						created_at: user.createdAt,
+						verified: user.verified,
+						role: user.role,
+					})
+				);
 
 				console.log("Users Data:", formattedData);
 			}

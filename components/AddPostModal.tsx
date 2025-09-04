@@ -128,28 +128,36 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 			} else {
 				toast.error("Failed to create post. Please try again.");
 			}
-		} catch (error: any) {
+		} catch (error) {
 			console.error("Error adding post:", error);
 
 			// More detailed error logging
-			if (error.response) {
-				console.error("Error response data:", error.response.data);
-				console.error("Error response status:", error.response.status);
-				console.error("Error response headers:", error.response.headers);
+			if (axios.isAxiosError(error)) {
+				console.error("Error response data:", error.response?.data);
+				console.error("Error response status:", error.response?.status);
+				console.error("Error response headers:", error.response?.headers);
 
 				const errorMessage =
-					error.response.data?.data?.message ||
-					error.response.data?.message ||
+					error.response?.data?.data?.message ||
+					error.response?.data?.message ||
 					"An error occurred while adding the post.";
 				toast.error(errorMessage);
-			} else if (error.request) {
-				console.error("Error request:", error.request);
+			} else if (
+				typeof error === "object" &&
+				error !== null &&
+				"request" in error
+			) {
+				console.error("Error request:", (error as any).request);
 				toast.error(
 					"No response received from server. Please check your connection."
 				);
 			} else {
-				console.error("Error message:", error.message);
-				toast.error("An unexpected error occurred: " + error.message);
+				const message =
+					typeof error === "object" && error !== null && "message" in error
+						? (error as any).message
+						: String(error);
+				console.error("Error message:", message);
+				toast.error("An unexpected error occurred: " + message);
 			}
 		} finally {
 			setIsLoading(false);
