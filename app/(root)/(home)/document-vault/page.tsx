@@ -23,12 +23,28 @@ interface OverviewData {
 	last_backup_date: string | null;
 }
 
+interface Folder {
+	_id: string;
+	access: string;
+	folder_description: string;
+	user_id: string;
+	created_by: string;
+	name: string;
+	lock: boolean;
+	child: any[];
+	parent: string | null;
+	createdAt: string;
+	updatedAt: string;
+	__v: number;
+	current_size: number;
+	total_file: number;
+}
 interface ApiResponse {
 	status: boolean;
 	message: string;
 	data: {
 		overview: OverviewData;
-		folder: any[];
+		folder: Folder[];
 		pagination: {
 			total: number;
 			page: number;
@@ -69,12 +85,8 @@ function DocumentVault() {
 			if (response.data.status === true) {
 				setOverview(response.data.data.overview);
 			}
-		} catch (error: any) {
-			console.error("Error fetching vault data:", error);
-			const errorMessage =
-				error.response?.data?.message ||
-				"Failed to fetch vault data. Please try again.";
-			toast.error(errorMessage);
+		} catch (error) {
+			console.error("Error fetching user data:", error);
 		} finally {
 			setIsLoading(false);
 		}
@@ -83,18 +95,6 @@ function DocumentVault() {
 	useEffect(() => {
 		fetchVaultData();
 	}, []);
-
-	const formatBytes = (bytes: number, decimals = 2): string => {
-		if (bytes === 0) return "0 Bytes";
-
-		const k = 1024;
-		const dm = decimals < 0 ? 0 : decimals;
-		const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
-
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-		return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
-	};
 
 	const formatDate = (dateString: string | null): string => {
 		if (!dateString) return "Never";
