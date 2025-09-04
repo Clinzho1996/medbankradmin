@@ -13,6 +13,15 @@ import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { Checkbox } from "../ui/checkbox";
 
+interface Role {
+	_id: string;
+	name: string;
+	title: string;
+	description: string;
+	permission: string[];
+	count?: number;
+}
+
 function Roles() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [currentStep, setCurrentStep] = useState(1);
@@ -23,9 +32,8 @@ function Roles() {
 		description: "",
 		permission: [] as string[],
 	});
-	const [searchInput, setSearchInput] = useState("");
 	const [allPermissions, setAllPermissions] = useState<string[]>([]);
-	const [roles, setRoles] = useState<any[]>([]);
+	const [roles, setRoles] = useState<Role[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
 
 	// Fetch all permissions
@@ -82,6 +90,8 @@ function Roles() {
 
 			if (response.data.status === true) {
 				setRoles(response.data.data);
+
+				console.log("Roles Data:", response.data.data);
 			}
 		} catch (error) {
 			console.error("Error fetching roles:", error);
@@ -150,11 +160,11 @@ function Roles() {
 
 				setIsModalOpen(false);
 				resetForm();
-			} catch (error: any) {
+			} catch (error: unknown) {
 				console.error("Error saving role:", error);
 				const errorMessage =
-					error.response?.data?.message ||
-					"Failed to save role. Please try again.";
+					(error as { response?: { data?: { message?: string } } })?.response
+						?.data?.message || "Failed to save role. Please try again.";
 				toast.error(errorMessage);
 			}
 		}
@@ -191,7 +201,7 @@ function Roles() {
 		}
 	};
 
-	const openEditModal = (role: any) => {
+	const openEditModal = (role: Role) => {
 		setIsEditMode(true);
 		setRoleData({
 			name: role.name,
@@ -226,11 +236,11 @@ function Roles() {
 				toast.success("Role deleted successfully!");
 				fetchRoles(); // Refresh roles list
 			}
-		} catch (error: any) {
+		} catch (error: unknown) {
 			console.error("Error deleting role:", error);
 			const errorMessage =
-				error.response?.data?.message ||
-				"Failed to delete role. Please try again.";
+				(error as { response?: { data?: { message?: string } } })?.response
+					?.data?.message || "Failed to delete role. Please try again.";
 			toast.error(errorMessage);
 		}
 	};
@@ -527,8 +537,8 @@ function Roles() {
 									)}
 								</div>
 							</div>
-							<p className="text-dark-1 text-sm text-left">
-								{role.title}{" "}
+							<p className="text-dark-1 text-sm text-left capitalize">
+								{role.name}{" "}
 								<span className="text-xs text-[#6B7280] text-left">
 									({role.count || 0})
 								</span>

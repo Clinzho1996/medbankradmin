@@ -1,6 +1,6 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, Row } from "@tanstack/react-table";
 import { ArrowUpDown } from "lucide-react";
 
 import Loader from "@/components/Loader";
@@ -27,8 +27,11 @@ import { EndUserDataTable } from "./end-user-table";
 // This type is used to define the shape of our data.
 export type EndUser = {
 	id: string;
+	_id: string;
+	createdAt: string;
 	public_id?: string;
 	full_name: string | null;
+	profile_pic?: string | null;
 	email: string;
 	status: string;
 	date_of_birth: string | null;
@@ -54,7 +57,7 @@ interface ApiResponse {
 		limit: number;
 		pages: number;
 	};
-	filters: Record<string, any>;
+	filters: Record<string, unknown>;
 }
 
 declare module "next-auth" {
@@ -63,13 +66,21 @@ declare module "next-auth" {
 	}
 }
 
+interface EditData {
+	id: string;
+	full_name: string;
+	email: string;
+	gender: string;
+	date_of_birth: string;
+}
+
 const EndUserTable = () => {
 	const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
-	const [selectedRow, setSelectedRow] = useState<any>(null);
+	const [selectedRow, setSelectedRow] = useState<EndUser | null>(null);
 	const [isLoading, setIsLoading] = useState<boolean>(false);
 	const [tableData, setTableData] = useState<EndUser[]>([]);
 	const [isEditModalOpen, setEditModalOpen] = useState(false);
-	const [editData, setEditData] = useState({
+	const [editData, setEditData] = useState<EditData>({
 		id: "",
 		full_name: "",
 		email: "",
@@ -78,12 +89,12 @@ const EndUserTable = () => {
 	});
 	const [pagination, setPagination] = useState({
 		page: 1,
-		limit: 50, // Increased limit to get more records
+		limit: 50,
 		total: 0,
 		pages: 1,
 	});
 
-	const openEditModal = (row: any) => {
+	const openEditModal = (row: Row<EndUser>) => {
 		const user = row.original;
 		setEditData({
 			id: user.id,
@@ -128,7 +139,7 @@ const EndUserTable = () => {
 
 			if (response.status === 200) {
 				toast.success("User updated successfully.");
-				fetchUsers(); // Refresh the table data
+				fetchUsers();
 				closeEditModal();
 			}
 		} catch (error) {
@@ -139,7 +150,7 @@ const EndUserTable = () => {
 		}
 	};
 
-	const openDeleteModal = (row: any) => {
+	const openDeleteModal = (row: Row<EndUser>) => {
 		setSelectedRow(row.original);
 		setDeleteModalOpen(true);
 	};
@@ -160,7 +171,7 @@ const EndUserTable = () => {
 				return;
 			}
 
-			const response = await axios.get(
+			const response = await axios.get<ApiResponse>(
 				`https://api.medbankr.ai/api/v1/administrator/user?page=${page}&limit=${limit}`,
 				{
 					headers: {
@@ -171,9 +182,10 @@ const EndUserTable = () => {
 			);
 
 			if (response.data.status === true) {
-				// Map the API response to match the `EndUser` type
-				const formattedData = response.data.data.map((user: any) => ({
+				const formattedData = response.data.data.map((user) => ({
 					id: user._id,
+					_id: user._id,
+					createdAt: user.createdAt,
 					public_id: user.public_id,
 					pic: user.profile_pic,
 					full_name: user.full_name,
@@ -188,7 +200,6 @@ const EndUserTable = () => {
 
 				setTableData(formattedData);
 
-				// Update pagination info
 				if (response.data.pagination) {
 					setPagination(response.data.pagination);
 				}
@@ -204,7 +215,7 @@ const EndUserTable = () => {
 	};
 
 	useEffect(() => {
-		fetchUsers(1, 50); // Fetch first page with higher limit
+		fetchUsers(1, 50);
 	}, []);
 
 	const deleteUser = async (id: string) => {
@@ -225,12 +236,11 @@ const EndUserTable = () => {
 						Authorization: `Bearer ${accessToken}`,
 						"Content-Type": "application/json",
 					},
-					data: { id }, // 👈 send id in body instead of URL
+					data: { id },
 				}
 			);
 
 			if (response.status === 200) {
-				// Remove the deleted user from the table
 				setTableData((prevData) => prevData.filter((user) => user.id !== id));
 				toast.success("User deleted successfully.");
 			}
@@ -512,8 +522,10 @@ const EndUserTable = () => {
 						<Button
 							className="bg-[#F04F4A] text-white font-inter text-xs modal-delete"
 							onClick={async () => {
-								await deleteUser(selectedRow.id);
-								closeDeleteModal();
+								if (selectedRow) {
+									await deleteUser(selectedRow.id);
+									closeDeleteModal();
+								}
 							}}>
 							Yes, Confirm
 						</Button>

@@ -54,8 +54,13 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 				setIsLoading(false);
 				return;
 			}
-			if (!content.trim()) {
+			if (!content.trim() || content === "<p><br></p>") {
 				toast.error("The post content is required.");
+				setIsLoading(false);
+				return;
+			}
+			if (!category.trim()) {
+				toast.error("The post category is required.");
 				setIsLoading(false);
 				return;
 			}
@@ -67,27 +72,37 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 				return;
 			}
 
+			// Get author information from session
+
+			const authorImage = "/logo.png";
+
 			const formData = new FormData();
 			formData.append("post_title", postTitle);
 			formData.append("content", content);
 			formData.append("category", category);
-			formData.append("status", status === "draft" ? "draft" : "publish");
+			formData.append("status", status);
+			formData.append("author_name", "MedBankr Admin");
 
-			// Add author information from session if available
-			if (session.user?.name) {
-				formData.append("author_name", session.user.name);
-			}
-
-			if (session.user?.image) {
-				formData.append("author_image", session.user.image);
+			if (authorImage) {
+				formData.append("author_image", authorImage);
 			}
 
 			if (coverImage) {
 				formData.append("cover_image", coverImage);
 			}
 
+			console.log("Sending form data with fields:", {
+				post_title: postTitle,
+				content: content,
+				category: category,
+				status: status,
+				author_name: "MedBankr Admin",
+				author_image: authorImage,
+				has_cover_image: !!coverImage,
+			});
+
 			const response = await axios.post(
-				"https://api.medbankr.ai/api/v1/administrator/blog", // Updated API endpoint
+				"https://api.medbankr.ai/api/v1/administrator/blog",
 				formData,
 				{
 					headers: {
@@ -115,10 +130,27 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 			}
 		} catch (error: any) {
 			console.error("Error adding post:", error);
-			const errorMessage =
-				error.response?.data?.message ||
-				"An error occurred while adding the post.";
-			toast.error(errorMessage);
+
+			// More detailed error logging
+			if (error.response) {
+				console.error("Error response data:", error.response.data);
+				console.error("Error response status:", error.response.status);
+				console.error("Error response headers:", error.response.headers);
+
+				const errorMessage =
+					error.response.data?.data?.message ||
+					error.response.data?.message ||
+					"An error occurred while adding the post.";
+				toast.error(errorMessage);
+			} else if (error.request) {
+				console.error("Error request:", error.request);
+				toast.error(
+					"No response received from server. Please check your connection."
+				);
+			} else {
+				console.error("Error message:", error.message);
+				toast.error("An unexpected error occurred: " + error.message);
+			}
 		} finally {
 			setIsLoading(false);
 		}
@@ -161,7 +193,7 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 			<div className="space-y-4 mt-4 max-h-[70vh] overflow-y-auto ">
 				<div>
 					<label className="block text-sm font-medium text-gray-700">
-						Post Title
+						Post Title *
 					</label>
 					<input
 						type="text"
@@ -169,17 +201,20 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 						onChange={(e) => setPostTitle(e.target.value)}
 						className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm"
 						placeholder="Enter post title"
+						required
 					/>
 				</div>
 
 				<div>
 					<label className="block text-sm font-medium text-gray-700">
-						Category
+						Category *
 					</label>
 					<select
 						value={category}
 						onChange={(e) => setCategory(e.target.value)}
-						className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm">
+						className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 text-sm"
+						required>
+						<option value="">Select a category</option>
 						{categories.map((cat) => (
 							<option key={cat} value={cat}>
 								{cat}
@@ -227,7 +262,7 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 
 				<div>
 					<label className="block text-sm font-medium text-gray-700">
-						Content
+						Content *
 					</label>
 					<ReactQuill
 						value={content}
@@ -248,7 +283,12 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 					<Button
 						onClick={handleAddPost}
 						className="bg-secondary-1 cborder text-dark-1 font-inter text-xs"
-						disabled={isLoading}>
+						disabled={
+							isLoading ||
+							!postTitle.trim() ||
+							!content.trim() ||
+							!category.trim()
+						}>
 						{isLoading ? "Adding Post..." : "Add Post"}
 					</Button>
 				</div>
