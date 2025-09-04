@@ -1,6 +1,6 @@
 import Modal from "@/components/Modal";
 import { Button } from "@/components/ui/button";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { getSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
@@ -72,8 +72,6 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 				return;
 			}
 
-			// Get author information from session
-
 			const authorImage = "/logo.png";
 
 			const formData = new FormData();
@@ -82,10 +80,7 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 			formData.append("category", category);
 			formData.append("status", status);
 			formData.append("author_name", "MedBankr Admin");
-
-			if (authorImage) {
-				formData.append("author_image", authorImage);
-			}
+			formData.append("author_image", authorImage);
 
 			if (coverImage) {
 				formData.append("cover_image", coverImage);
@@ -93,9 +88,9 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 
 			console.log("Sending form data with fields:", {
 				post_title: postTitle,
-				content: content,
-				category: category,
-				status: status,
+				content,
+				category,
+				status,
 				author_name: "MedBankr Admin",
 				author_image: authorImage,
 				has_cover_image: !!coverImage,
@@ -128,18 +123,19 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 			} else {
 				toast.error("Failed to create post. Please try again.");
 			}
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error("Error adding post:", error);
 
-			// More detailed error logging
 			if (axios.isAxiosError(error)) {
-				console.error("Error response data:", error.response?.data);
-				console.error("Error response status:", error.response?.status);
-				console.error("Error response headers:", error.response?.headers);
+				// Typed Axios error
+				const axiosError = error as AxiosError<any>;
+				console.error("Error response data:", axiosError.response?.data);
+				console.error("Error response status:", axiosError.response?.status);
+				console.error("Error response headers:", axiosError.response?.headers);
 
 				const errorMessage =
-					error.response?.data?.data?.message ||
-					error.response?.data?.message ||
+					axiosError.response?.data?.data?.message ||
+					axiosError.response?.data?.message ||
 					"An error occurred while adding the post.";
 				toast.error(errorMessage);
 			} else if (
@@ -147,14 +143,19 @@ const AddPostModal = ({ isOpen, onClose, onPostAdded }: AddPostModalProps) => {
 				error !== null &&
 				"request" in error
 			) {
-				console.error("Error request:", (error as any).request);
+				// Covers rare non-Axios network errors
+				console.error(
+					"Error request:",
+					(error as { request: unknown }).request
+				);
 				toast.error(
 					"No response received from server. Please check your connection."
 				);
 			} else {
+				// Fallback for other error shapes
 				const message =
 					typeof error === "object" && error !== null && "message" in error
-						? (error as any).message
+						? String((error as { message: string }).message)
 						: String(error);
 				console.error("Error message:", message);
 				toast.error("An unexpected error occurred: " + message);

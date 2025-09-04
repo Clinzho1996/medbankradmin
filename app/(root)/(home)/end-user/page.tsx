@@ -1,6 +1,7 @@
 "use client";
 
 import HeaderBox from "@/components/HeaderBox";
+import Loader from "@/components/Loader";
 import StatCard from "@/components/StatCard";
 import EndUserTable from "@/config/end-user-columns";
 import axios from "axios";
@@ -151,6 +152,11 @@ function EndUserPage() {
 	useEffect(() => {
 		fetchUsers(1, 5000); // Fetch first page with higher limit
 	}, []);
+
+	if (isLoading) {
+		return <Loader />;
+	}
+
 	return (
 		<div className="w-full overflow-x-hidden">
 			<HeaderBox title="End User" />
