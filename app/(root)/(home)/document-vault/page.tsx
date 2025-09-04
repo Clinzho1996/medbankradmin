@@ -1,9 +1,129 @@
+"use client";
+
 import HeaderBox from "@/components/HeaderBox";
 import StatCard from "@/components/StatCard";
 import DocumentTable from "@/config/document-columns";
+import axios from "axios";
+import { getSession } from "next-auth/react";
 import Image from "next/image";
+import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
+
+interface OverviewData {
+	total_storage: number;
+	total_file: number;
+	avg_file_size: number;
+	storage_growth: {
+		total: number;
+		filesThisWeek: number;
+		filesLastWeek: number;
+		percentChange: number;
+	};
+	backup_status: string;
+	last_backup_date: string | null;
+}
+
+interface ApiResponse {
+	status: boolean;
+	message: string;
+	data: {
+		overview: OverviewData;
+		folder: any[];
+		pagination: {
+			total: number;
+			page: number;
+			limit: number;
+			pages: number;
+		};
+	};
+	error: string;
+}
 
 function DocumentVault() {
+	const [overview, setOverview] = useState<OverviewData | null>(null);
+	const [isLoading, setIsLoading] = useState(true);
+
+	// Fetch vault data
+	const fetchVaultData = async () => {
+		try {
+			setIsLoading(true);
+			const session = await getSession();
+			const accessToken = session?.accessToken;
+
+			if (!accessToken) {
+				toast.error("No access token found. Please log in again.");
+				setIsLoading(false);
+				return;
+			}
+
+			const response = await axios.get<ApiResponse>(
+				"https://api.medbankr.ai/api/v1/administrator/vault",
+				{
+					headers: {
+						Accept: "application/json",
+						Authorization: `Bearer ${accessToken}`,
+					},
+				}
+			);
+
+			if (response.data.status === true) {
+				setOverview(response.data.data.overview);
+			}
+		} catch (error: any) {
+			console.error("Error fetching vault data:", error);
+			const errorMessage =
+				error.response?.data?.message ||
+				"Failed to fetch vault data. Please try again.";
+			toast.error(errorMessage);
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	useEffect(() => {
+		fetchVaultData();
+	}, []);
+
+	const formatBytes = (bytes: number, decimals = 2): string => {
+		if (bytes === 0) return "0 Bytes";
+
+		const k = 1024;
+		const dm = decimals < 0 ? 0 : decimals;
+		const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+
+		const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+		return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+	};
+
+	const formatDate = (dateString: string | null): string => {
+		if (!dateString) return "Never";
+
+		const date = new Date(dateString);
+		return date.toLocaleDateString("en-US", {
+			year: "numeric",
+			month: "short",
+			day: "numeric",
+			hour: "2-digit",
+			minute: "2-digit",
+		});
+	};
+
+	if (isLoading) {
+		return (
+			<div className="w-full overflow-x-hidden">
+				<HeaderBox title="Document & Vault Management" />
+				<p className="text-sm text-[#6C7278] font-normal mb-4 p-3 bg-[#F4F6F8] border-b border-[#6C72781A]">
+					Administrative oversight of user health vaults, document storage,
+					processing workflows, and data integrity management.
+				</p>
+				<div className="flex justify-center items-center h-64">
+					<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary-1"></div>
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className="w-full overflow-x-hidden">
 			<HeaderBox title="Document & Vault Management" />
@@ -12,58 +132,106 @@ function DocumentVault() {
 				processing workflows, and data integrity management.
 			</p>
 
-			<div className="flex flex-col sm:flex-row justify-between items-start px-4 py-2 gap-2 w-full max-w-[100vw]">
-				<div className="border-[1px] border-[#E2E4E9] rounded-lg w-full bg-white overflow-hidden p-3 flex flex-col gap-3">
-					<div className="flex flex-row justify-start gap-2 items-center">
-						<Image src="/images/info.png" alt="info" width={20} height={20} />
-						<p className="text-sm font-medium text-black">Storage Metrics</p>
-					</div>
+			{overview && (
+				<div className="flex flex-col sm:flex-row justify-between items-start px-4 py-2 gap-2 w-full max-w-[100vw]">
+					<div className="border-[1px] border-[#E2E4E9] rounded-lg w-full bg-white overflow-hidden p-3 flex flex-col gap-3">
+						<div className="flex flex-row justify-start gap-2 items-center">
+							<Image src="/images/info.png" alt="info" width={20} height={20} />
+							<p className="text-sm font-medium text-black">Storage Metrics</p>
+						</div>
 
-					<div className="flex flex-row justify-start items-center w-full gap-3">
-						<StatCard
-							title="Total Storage Used"
-							value={45678}
-							percentage="36%"
-							positive
-						/>
+						<div className="flex flex-row  justify-start items-center w-full gap-3">
+							<StatCard
+								title="Total Storage Used"
+								value={Number(overview.total_storage).toFixed(4)}
+								unit="MB"
+								percentage={`${Math.round(
+									(overview.total_storage / 100) * 100
+								)}%`}
+								positive={overview.total_storage > 0}
+							/>
 
-						<StatCard
-							title="Document Stored"
-							value={3456}
-							percentage="24%"
-							positive={false}
-						/>
-						<StatCard
-							title="Average Document Size"
-							value={12345}
-							percentage="18%"
-							positive
-						/>
-						<StatCard
-							title="Storage Growth Rate"
-							value={12345}
-							percentage="18%"
-							positive
-						/>
-					</div>
+							<StatCard
+								title="Documents Stored"
+								value={overview.total_file}
+								unit="files"
+								percentage={`${Math.round((overview.total_file / 100) * 100)}%`}
+								positive={overview.total_file > 0}
+							/>
 
-					<div className="flex flex-row justify-start items-center w-full sm:w-[50%] gap-3">
-						<StatCard
-							title="Backup Status"
-							value={45678}
-							percentage="36%"
-							positive
-						/>
+							<StatCard
+								title="Average Document Size"
+								value={Number(overview.avg_file_size).toFixed(4)}
+								unit="MB"
+								percentage={`${Math.round(
+									(overview.avg_file_size / 10) * 100
+								)}%`}
+								positive={overview.avg_file_size > 0}
+							/>
 
-						<StatCard
-							title="Last Backup Time"
-							value={3456}
-							percentage="24%"
-							positive
-						/>
+							<StatCard
+								title="Storage Growth Rate"
+								value={overview.storage_growth.percentChange}
+								unit="%"
+								percentage={`${Math.abs(
+									overview.storage_growth.percentChange
+								)}%`}
+								positive={overview.storage_growth.percentChange >= 0}
+							/>
+						</div>
+
+						<div className="flex flex-row justify-start items-center w-full gap-3">
+							<StatCard
+								title="Files This Week"
+								value={overview.storage_growth.filesThisWeek}
+								unit="files"
+								percentage={`${Math.round(
+									(overview.storage_growth.filesThisWeek /
+										(overview.storage_growth.filesThisWeek +
+											overview.storage_growth.filesLastWeek || 1)) *
+										100
+								)}%`}
+								positive={overview.storage_growth.filesThisWeek > 0}
+							/>
+
+							<StatCard
+								title="Files Last Week"
+								value={overview.storage_growth.filesLastWeek}
+								unit="files"
+								percentage={`${Math.round(
+									(overview.storage_growth.filesLastWeek /
+										(overview.storage_growth.filesThisWeek +
+											overview.storage_growth.filesLastWeek || 1)) *
+										100
+								)}%`}
+								positive={overview.storage_growth.filesLastWeek > 0}
+							/>
+
+							<StatCard
+								title="Backup Status"
+								value={overview.backup_status}
+								unit=""
+								percentage={
+									overview.backup_status === "NEVER" ? "Never" : "Active"
+								}
+								positive={overview.backup_status !== "NEVER"}
+							/>
+
+							<StatCard
+								title="Last Backup Time"
+								value={
+									overview.last_backup_date
+										? formatDate(overview.last_backup_date)
+										: "Never"
+								}
+								unit=""
+								percentage={overview.last_backup_date ? "Completed" : "Pending"}
+								positive={!!overview.last_backup_date}
+							/>
+						</div>
 					</div>
 				</div>
-			</div>
+			)}
 
 			<div className="bg-white flex flex-col px-4 py-2 gap-2 w-full max-w-[100vw]">
 				<DocumentTable />

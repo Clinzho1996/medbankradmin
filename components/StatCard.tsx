@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp } from "lucide-react";
 interface StatCardProps {
 	title: string;
 	value: number | string;
+	unit?: string;
 	percentage?: string;
 	positive?: boolean;
 }
@@ -11,6 +12,7 @@ interface StatCardProps {
 const StatCard: React.FC<StatCardProps> = ({
 	title,
 	value,
+	unit,
 	percentage,
 	positive = true,
 }) => {
@@ -20,7 +22,9 @@ const StatCard: React.FC<StatCardProps> = ({
 				<p className="text-xs text-gray-500 font-medium">
 					{title.toUpperCase()}
 				</p>
-				<p className="text-3xl font-medium text-black mt-3">{value}</p>
+				<p className="text-3xl font-medium text-black mt-3">
+					{value} {unit}
+				</p>
 			</div>
 			{percentage && (
 				<div
