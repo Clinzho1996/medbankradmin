@@ -34,32 +34,66 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { IconPlus } from "@tabler/icons-react";
+import axios from "axios";
 import {
 	ChevronLeft,
 	ChevronRight,
 	ChevronsLeft,
 	ChevronsRight,
-	X,
 } from "lucide-react";
-import Image from "next/image";
-import React, { useEffect, useRef, useState } from "react";
+import { getSession } from "next-auth/react";
+import React, { useEffect, useState } from "react";
 import { DateRange } from "react-day-picker";
+import { toast } from "react-toastify";
 
-interface TransactionTableProps<TData, TValue> {
+interface DocumentDataTablesProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
 	data: TData[];
 }
 
 interface FolderData {
 	name: string;
-	image: File | null;
-	imagePreview: string | null;
+	folder_description: string;
+}
+
+interface ApiResponse {
+	status: boolean;
+	message: string;
+	data: {
+		overview: {
+			total_storage: number;
+			total_file: number;
+			avg_file_size: number;
+			storage_growth: {
+				total: number;
+				filesThisWeek: number;
+				filesLastWeek: number;
+				percentChange: number;
+			};
+			backup_status: string;
+			last_backup_date: string | null;
+		};
+		folder: any[];
+		pagination: {
+			total: number;
+			page: number;
+			limit: number;
+			pages: number;
+		};
+	};
+	error: string;
+}
+
+declare module "next-auth" {
+	interface Session {
+		accessToken?: string;
+	}
 }
 
 export function DocumentDataTables<TData, TValue>({
 	columns,
 	data,
-}: TransactionTableProps<TData, TValue>) {
+}: DocumentDataTablesProps<TData, TValue>) {
 	const [sorting, setSorting] = React.useState<SortingState>([]);
 	const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
 		[]
@@ -72,17 +106,13 @@ export function DocumentDataTables<TData, TValue>({
 	const [isModalOpen, setModalOpen] = useState(false);
 	const [tableData, setTableData] = useState(data);
 	const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+	const [isCreating, setIsCreating] = useState(false);
 
 	// Folder creation state
 	const [folderData, setFolderData] = useState<FolderData>({
 		name: "",
-		image: null,
-		imagePreview: null,
+		folder_description: "",
 	});
-	const [uploadedFiles, setUploadedFiles] = useState<
-		Array<{ name: string; size: string; preview: string }>
-	>([]);
-	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	const openModal = () => setModalOpen(true);
 	const closeModal = () => {
@@ -90,48 +120,67 @@ export function DocumentDataTables<TData, TValue>({
 		// Reset form when closing modal
 		setFolderData({
 			name: "",
-			image: null,
-			imagePreview: null,
+			folder_description: "",
 		});
-		setUploadedFiles([]);
 	};
 
 	const handleFolderNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		setFolderData({ ...folderData, name: e.target.value });
 	};
 
-	const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const files = e.target.files;
-		if (!files || files.length === 0) return;
+	const handleFolderDescriptionChange = (
+		e: React.ChangeEvent<HTMLTextAreaElement>
+	) => {
+		setFolderData({ ...folderData, folder_description: e.target.value });
+	};
 
-		const newFiles = Array.from(files).map((file) => {
-			const preview = URL.createObjectURL(file);
-			return {
-				name: file.name,
-				size: `${(file.size / (1024 * 1024)).toFixed(1)}mb`,
-				preview,
+	const handleCreateFolder = async () => {
+		try {
+			setIsCreating(true);
+			const session = await getSession();
+			const accessToken = session?.accessToken;
+
+			if (!accessToken) {
+				toast.error("No access token found. Please log in again.");
+				return;
+			}
+
+			// Prepare payload according to API requirements
+			const payload = {
+				name: folderData.name,
+				description: folderData.folder_description,
 			};
-		});
 
-		setUploadedFiles([...uploadedFiles, ...newFiles]);
-	};
+			const response = await axios.post(
+				"https://api.medbankr.ai/api/v1/administrator/vault",
+				payload,
+				{
+					headers: {
+						Accept: "application/json",
+						Authorization: `Bearer ${accessToken}`,
+						"Content-Type": "application/json",
+					},
+				}
+			);
 
-	const removeFile = (index: number) => {
-		const newFiles = [...uploadedFiles];
-		URL.revokeObjectURL(newFiles[index].preview); // Clean up memory
-		newFiles.splice(index, 1);
-		setUploadedFiles(newFiles);
-	};
+			if (response.data.status === true) {
+				toast.success("Folder created successfully!");
 
-	const handleCreateFolder = () => {
-		// Implement folder creation logic here
-		console.log("Creating folder:", folderData.name);
-		console.log("Uploaded files:", uploadedFiles);
+				// Add the new folder to the table
+				const newFolder = response.data.data;
+				setTableData((prevData) => [newFolder as TData, ...prevData]);
 
-		// Reset form and close modal after creation
-		closeModal();
-
-		// You would typically send this data to your API here
+				closeModal();
+			}
+		} catch (error: any) {
+			console.error("Error creating folder:", error);
+			const errorMessage =
+				error.response?.data?.message ||
+				"Failed to create folder. Please try again.";
+			toast.error(errorMessage);
+		} finally {
+			setIsCreating(false);
+		}
 	};
 
 	const filterDataByDateRange = () => {
@@ -140,9 +189,9 @@ export function DocumentDataTables<TData, TValue>({
 			return;
 		}
 
-		const filteredData = data.filter((farmer: any) => {
-			const dateJoined = new Date(farmer.date);
-			return dateJoined >= dateRange.from! && dateJoined <= dateRange.to!;
+		const filteredData = data.filter((folder: any) => {
+			const dateCreated = new Date(folder.createdAt);
+			return dateCreated >= dateRange.from! && dateCreated <= dateRange.to!;
 		});
 
 		setTableData(filteredData);
@@ -159,8 +208,8 @@ export function DocumentDataTables<TData, TValue>({
 			setTableData(data); // Reset to all data
 		} else {
 			const filteredData = data?.filter(
-				(farmer) =>
-					(farmer as any)?.status?.toLowerCase() === status.toLowerCase()
+				(folder) =>
+					(folder as any)?.access?.toLowerCase() === status.toLowerCase()
 			);
 
 			setTableData(filteredData as TData[]);
@@ -168,7 +217,7 @@ export function DocumentDataTables<TData, TValue>({
 	};
 
 	const table = useReactTable({
-		data,
+		data: tableData,
 		columns,
 		getCoreRowModel: getCoreRowModel(),
 		getPaginationRowModel: getPaginationRowModel(),
@@ -192,112 +241,62 @@ export function DocumentDataTables<TData, TValue>({
 		<div className="rounded-lg border-[1px] py-0">
 			<Modal isOpen={isModalOpen} onClose={closeModal} title="Create Folder">
 				<div className="w-[96%] sm:w-[500px] mx-auto">
-					<div className="bg-[#F6F8FA] p-2 border rounded-lg">
-						<div className="p-3">
+					<div className="bg-[#F6F8FA] p-4 border rounded-lg">
+						<div className="mb-4">
 							<p className="text-sm font-medium">Vault Folder Creation</p>
 							<p className="text-xs text-[#6B7280] mt-1">
 								Add basic information about the folder you are creating
 							</p>
 						</div>
 
-						<div className="bg-white p-3 rounded-lg shadow-lg mt-3">
+						<div className="bg-white p-4 rounded-lg shadow-lg">
 							{/* Folder name input */}
-							<p className="text-sm font-normal text-[#6B7280]">Folder Name</p>
-							<Input
-								type="text"
-								placeholder="Enter name of folder"
-								className="border border-gray-300 p-2 rounded-lg w-full mt-2"
-								value={folderData.name}
-								onChange={handleFolderNameChange}
-							/>
-
-							{/* File upload area */}
-							<div className="border bg-[#F6F8FA] p-1 mt-2 rounded-lg">
-								<div className="border bg-white p-1 rounded-lg">
-									<div
-										className="border bg-white p-1 border-dashed rounded-lg flex flex-row justify-start items-center gap-2 cursor-pointer"
-										onClick={() => fileInputRef.current?.click()}>
-										<Image
-											src="/images/Images.png"
-											alt="Folder Icon"
-											width={32}
-											height={32}
-										/>
-										<div>
-											<p className="text-sm font-normal text-secondary-1 ">
-												Click to upload folder image
-											</p>
-											<p className="text-xs font-normal text-[#A3A3A3] ">
-												JPEG, and PNG less than 10MB
-											</p>
-										</div>
-										<input
-											type="file"
-											ref={fileInputRef}
-											className="hidden"
-											onChange={handleFileUpload}
-											multiple
-											accept=".jpeg,.jpg,.png"
-										/>
-									</div>
-								</div>
+							<div className="mb-4">
+								<label className="block text-sm font-normal text-[#6B7280] mb-2">
+									Folder Name
+								</label>
+								<Input
+									type="text"
+									placeholder="Enter name of folder"
+									className="border border-gray-300 p-2 rounded-lg w-full"
+									value={folderData.name}
+									onChange={handleFolderNameChange}
+								/>
 							</div>
 
-							{/* Uploaded files preview */}
-							{uploadedFiles.length > 0 && (
-								<>
-									<hr className="my-4" />
-									{uploadedFiles.map((file, index) => (
-										<div
-											key={index}
-											className="border bg-[#F6F8FA] p-1 mt-2 rounded-lg relative">
-											<div className="border bg-white p-1 rounded-lg">
-												<div className="border bg-white p-1 border-dashed rounded-lg flex flex-row justify-start items-center gap-2">
-													<Image
-														src="/images/fold2.png"
-														alt="Folder Icon"
-														width={68}
-														height={68}
-													/>
-													<div className="flex-1">
-														<p className="text-sm font-normal text-black ">
-															{file.name}
-														</p>
-														<p className="text-xs font-normal text-[#A3A3A3] ">
-															{file.size}
-														</p>
-													</div>
-													<button
-														className="p-1 text-gray-500 hover:text-red-500"
-														onClick={(e) => {
-															e.stopPropagation();
-															removeFile(index);
-														}}>
-														<X size={16} />
-													</button>
-												</div>
-											</div>
-										</div>
-									))}
-								</>
-							)}
+							{/* Folder description input */}
+							<div className="mb-4">
+								<label className="block text-sm font-normal text-[#6B7280] mb-2">
+									Description
+								</label>
+								<textarea
+									placeholder="Enter folder description"
+									className="border border-gray-300 p-2 rounded-lg w-full h-24 resize-none"
+									value={folderData.folder_description}
+									onChange={handleFolderDescriptionChange}
+								/>
+							</div>
 						</div>
 					</div>
 
 					<div className="flex flex-row justify-end items-center gap-3 mt-4">
-						<Button className="border" onClick={closeModal}>
+						<Button
+							className="border-[#E8E8E8] border-[1px] text-primary-6"
+							onClick={closeModal}>
 							Cancel
 						</Button>
 						<Button
-							className="bg-secondary-1"
+							className="bg-secondary-1 text-dark-1"
 							onClick={handleCreateFolder}
-							disabled={!folderData.name || uploadedFiles.length === 0}>
-							Submit
+							disabled={
+								isCreating || !folderData.name || !folderData.folder_description
+							}>
+							{isCreating ? "Creating..." : "Create Folder"}
 						</Button>
 					</div>
 				</div>
 			</Modal>
-			{/* Rest of your component remains the same */}
+
 			<div
 				className="bg-white flex flex-col border-b-[0px] border-[#E2E4E9] justify-start items-start rounded-lg"
 				style={{
@@ -306,7 +305,7 @@ export function DocumentDataTables<TData, TValue>({
 				}}>
 				<div className="p-3 flex flex-row justify-between border-b-[1px] border-[#E2E4E9] bg-white items-center gap-20 w-full rounded-lg">
 					<div className="flex flex-row justify-start bg-white items-center rounded-lg mx-auto  w-full pr-2">
-						{["All", "Active", "Inactive"].map((status, index, arr) => (
+						{["View All", "Private", "Public"].map((status, index, arr) => (
 							<p
 								key={status}
 								className={`px-4 py-2 text-center text-sm cursor-pointer border border-[#E2E4E9] overflow-hidden ${
