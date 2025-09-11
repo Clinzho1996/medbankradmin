@@ -124,6 +124,10 @@ const StaffTable = () => {
 				return;
 			}
 
+			const payload = { ids: [id] }; // 👈 expects array of IDs
+
+			console.log("Payload:", payload);
+
 			const response = await axios.delete(
 				`https://api.medbankr.ai/api/v1/administrator/staff`,
 				{
@@ -132,12 +136,11 @@ const StaffTable = () => {
 						Authorization: `Bearer ${accessToken}`,
 						"Content-Type": "application/json",
 					},
-					data: { id }, // 👈 send id in body instead of URL
+					data: payload,
 				}
 			);
 
 			if (response.status === 200) {
-				// Remove the deleted user from the table
 				setTableData((prevData) => prevData.filter((user) => user.id !== id));
 				toast.success("User deleted successfully.");
 			}

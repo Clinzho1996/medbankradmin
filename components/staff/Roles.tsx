@@ -20,6 +20,7 @@ interface Role {
 	description: string;
 	permission: string[];
 	count?: number;
+	adminCount?: number;
 }
 
 function Roles() {
@@ -212,7 +213,7 @@ function Roles() {
 		setIsModalOpen(true);
 	};
 
-	const deleteRole = async (roleName: string) => {
+	const deleteRole = async (id: string) => {
 		try {
 			const session = await getSession();
 			const accessToken = session?.accessToken;
@@ -223,7 +224,7 @@ function Roles() {
 			}
 
 			const response = await axios.delete(
-				`https://api.medbankr.ai/api/v1/permissions/delete/${roleName}`,
+				`https://api.medbankr.ai/api/v1/administrator/permission/${id}`,
 				{
 					headers: {
 						Accept: "application/json",
@@ -528,11 +529,11 @@ function Roles() {
 										className="cursor-pointer"
 										onClick={() => openEditModal(role)}
 									/>
-									{role.name !== "super" && ( // Don't allow deleting super admin role
+									{role.name !== "super" && (
 										<IconX
 											color="#6B7280"
 											className="cursor-pointer"
-											onClick={() => deleteRole(role.name)}
+											onClick={() => deleteRole(role._id)}
 										/>
 									)}
 								</div>
@@ -540,7 +541,7 @@ function Roles() {
 							<p className="text-dark-1 text-sm text-left capitalize">
 								{role.name}{" "}
 								<span className="text-xs text-[#6B7280] text-left">
-									({role.count || 0})
+									({role.adminCount || 0})
 								</span>
 							</p>
 							<p className="text-xs text-[#6B7280] text-left">
