@@ -67,7 +67,7 @@ const Table = () => {
 	const closeRestoreModal = () => setRestoreModalOpen(false);
 	const closeDeleteModal = () => setDeleteModalOpen(false);
 
-	const fetchUserData = async () => {
+	const fetchUserData = async (page = 1, limit = 50) => {
 		try {
 			setIsLoading(true);
 			const session = await getSession();
@@ -79,7 +79,7 @@ const Table = () => {
 			}
 
 			const response = await axios.get<ApiResponse>(
-				"https://api.medbankr.ai/api/v1/administrator/waitlist/user",
+				`https://api.medbankr.ai/api/v1/administrator/waitlist/user?page=${page}&limit=${limit}`,
 				{
 					headers: {
 						Accept: "application/json",
