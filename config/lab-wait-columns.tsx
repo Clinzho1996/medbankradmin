@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import axios from "axios";
 import { getSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { DataTable } from "./data-table";
+import { LabWaitlistDataTable } from "./lab-data-table";
 
 // Define the expected API response type
 interface ApiResponse {
@@ -21,17 +21,20 @@ interface ApiResponse {
 			limit: number;
 			pages: number;
 		};
-		users: WaitlistUser[];
+		users: HospitalWaitlistUser[];
 	};
 }
 
-export interface WaitlistUser {
+export interface HospitalWaitlistUser {
 	_id: string;
 	type: string;
 	full_name: string;
 	designation: string;
 	phone: string;
 	email: string;
+	hospital_name: string;
+	hospital_address: string;
+	specialization: string;
 	mark_handled: boolean;
 	createdAt: string;
 	updatedAt: string;
@@ -44,21 +47,23 @@ declare module "next-auth" {
 	}
 }
 
-const Table = () => {
+const LabWaitlistTable = () => {
 	const [isLoading, setIsLoading] = useState<boolean>(false);
 	const [isRestoreModalOpen, setRestoreModalOpen] = useState(false);
 	const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
-	const [selectedRow, setSelectedRow] = useState<WaitlistUser | null>(null);
+	const [selectedRow, setSelectedRow] = useState<HospitalWaitlistUser | null>(
+		null
+	);
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-	const [tableData, setTableData] = useState<WaitlistUser[]>([]);
+	const [tableData, setTableData] = useState<HospitalWaitlistUser[]>([]);
 
 	// Open modal functions
-	const openRestoreModal = (row: { original: WaitlistUser }) => {
+	const openRestoreModal = (row: { original: HospitalWaitlistUser }) => {
 		setSelectedRow(row.original);
 		setRestoreModalOpen(true);
 	};
 
-	const openDeleteModal = (row: { original: WaitlistUser }) => {
+	const openDeleteModal = (row: { original: HospitalWaitlistUser }) => {
 		setSelectedRow(row.original);
 		setDeleteModalOpen(true);
 	};
@@ -79,7 +84,7 @@ const Table = () => {
 			}
 
 			const response = await axios.get<ApiResponse>(
-				"https://api.medbankr.ai/api/v1/administrator/waitlist/user",
+				"https://api.medbankr.ai/api/v1/administrator/waitlist/diagnostic",
 				{
 					headers: {
 						Accept: "application/json",
@@ -98,6 +103,9 @@ const Table = () => {
 				designation: item.designation,
 				phone: item.phone,
 				email: item.email,
+				hospital_name: item.hospital_name,
+				hospital_address: item.hospital_address,
+				specialization: item.specialization,
 				mark_handled: item.mark_handled,
 				createdAt: item.createdAt,
 				updatedAt: item.updatedAt,
@@ -106,7 +114,7 @@ const Table = () => {
 
 			setTableData(mappedData);
 		} catch (error) {
-			console.error("Error fetching user data:", error);
+			console.error("Error fetching hospital waitlist data:", error);
 		} finally {
 			setIsLoading(false);
 		}
@@ -127,7 +135,7 @@ const Table = () => {
 	};
 
 	// Define table columns
-	const columns: ColumnDef<WaitlistUser>[] = [
+	const columns: ColumnDef<HospitalWaitlistUser>[] = [
 		{
 			id: "select",
 			header: ({ table }) => (
@@ -213,6 +221,38 @@ const Table = () => {
 			},
 		},
 		{
+			accessorKey: "hospital_name",
+			header: ({ column }) => (
+				<Button
+					variant="ghost"
+					className="text-[13px] text-left"
+					onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+					Hospital Name
+					<ArrowUpDown className="ml-2 h-4 w-4" />
+				</Button>
+			),
+			cell: ({ row }) => {
+				const hospitalName = row.getValue<string>("hospital_name");
+				return <span className="text-xs text-primary-6">{hospitalName}</span>;
+			},
+		},
+		{
+			accessorKey: "specialization",
+			header: ({ column }) => (
+				<Button
+					variant="ghost"
+					className="text-[13px] text-left"
+					onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+					Specialization
+					<ArrowUpDown className="ml-2 h-4 w-4" />
+				</Button>
+			),
+			cell: ({ row }) => {
+				const specialization = row.getValue<string>("specialization");
+				return <span className="text-xs text-primary-6">{specialization}</span>;
+			},
+		},
+		{
 			accessorKey: "designation",
 			header: ({ column }) => (
 				<Button
@@ -259,7 +299,7 @@ const Table = () => {
 			{isLoading ? (
 				<Loader />
 			) : (
-				<DataTable columns={columns} data={tableData} />
+				<LabWaitlistDataTable columns={columns} data={tableData} />
 			)}
 
 			{isRestoreModalOpen && (
@@ -305,4 +345,4 @@ const Table = () => {
 	);
 };
 
-export default Table;
+export default LabWaitlistTable;

@@ -84,6 +84,7 @@ interface HealthProviderFormData {
 	specialization: string;
 	description: string;
 	officeEmail: string;
+	phoneNumbers: string[];
 	services: string[];
 	addresses: Array<{
 		street: string;
@@ -94,7 +95,10 @@ interface HealthProviderFormData {
 
 	// Step 2
 	consultationFee: string;
-	coverages: string[];
+	coverages: Array<{
+		name: string;
+		fee: number;
+	}>;
 	licenseNumber: string;
 	accreditationBody: string;
 	expiryDate: string;
@@ -117,9 +121,11 @@ export function HospitalDataTable<TData, TValue>({
 	const [selectedStatus, setSelectedStatus] = useState<string>("View All");
 	const [globalFilter, setGlobalFilter] = useState("");
 	const [isModalOpen, setModalOpen] = useState(false);
+	const [isLoading, setIsLoading] = useState(false);
 	const [tableData, setTableData] = useState<TData[]>(data);
 	const [currentStep, setCurrentStep] = useState(1);
 	const [serviceSearch, setServiceSearch] = useState("");
+	const [phoneInput, setPhoneInput] = useState("");
 	const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 	const [newAddress, setNewAddress] = useState({
 		street: "",
@@ -127,7 +133,10 @@ export function HospitalDataTable<TData, TValue>({
 		state: "",
 		country: "",
 	});
-	const [coverageInput, setCoverageInput] = useState("");
+	const [coverageInput, setCoverageInput] = useState({
+		name: "",
+		fee: "",
+	});
 
 	const [formData, setFormData] = useState<HealthProviderFormData>({
 		image: null,
@@ -137,6 +146,7 @@ export function HospitalDataTable<TData, TValue>({
 		specialization: "",
 		description: "",
 		officeEmail: "",
+		phoneNumbers: [],
 		services: [],
 		addresses: [],
 		consultationFee: "",
@@ -164,6 +174,7 @@ export function HospitalDataTable<TData, TValue>({
 			specialization: "",
 			description: "",
 			officeEmail: "",
+			phoneNumbers: [],
 			services: [],
 			addresses: [],
 			consultationFee: "",
@@ -176,8 +187,9 @@ export function HospitalDataTable<TData, TValue>({
 			certificatePreview: null,
 		});
 		setServiceSearch("");
+		setPhoneInput("");
 		setNewAddress({ street: "", city: "", state: "", country: "" });
-		setCoverageInput("");
+		setCoverageInput({ name: "", fee: "" });
 	};
 
 	const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -245,6 +257,25 @@ export function HospitalDataTable<TData, TValue>({
 		setFormData({ ...formData, services: newServices });
 	};
 
+	const addPhoneNumber = () => {
+		if (
+			phoneInput.trim() &&
+			!formData.phoneNumbers.includes(phoneInput.trim())
+		) {
+			setFormData({
+				...formData,
+				phoneNumbers: [...formData.phoneNumbers, phoneInput.trim()],
+			});
+			setPhoneInput("");
+		}
+	};
+
+	const removePhoneNumber = (index: number) => {
+		const newPhoneNumbers = [...formData.phoneNumbers];
+		newPhoneNumbers.splice(index, 1);
+		setFormData({ ...formData, phoneNumbers: newPhoneNumbers });
+	};
+
 	const addAddress = () => {
 		if (
 			newAddress.street &&
@@ -267,15 +298,18 @@ export function HospitalDataTable<TData, TValue>({
 	};
 
 	const addCoverage = () => {
-		if (
-			coverageInput.trim() &&
-			!formData.coverages.includes(coverageInput.trim())
-		) {
+		if (coverageInput.name.trim()) {
 			setFormData({
 				...formData,
-				coverages: [...formData.coverages, coverageInput.trim()],
+				coverages: [
+					...formData.coverages,
+					{
+						name: coverageInput.name.trim(),
+						fee: parseInt(coverageInput.fee) || 0,
+					},
+				],
 			});
-			setCoverageInput("");
+			setCoverageInput({ name: "", fee: "" });
 		}
 	};
 
@@ -300,11 +334,91 @@ export function HospitalDataTable<TData, TValue>({
 		setCurrentStep(1);
 	};
 
-	const handleSubmit = () => {
-		// Implement form submission logic here
-		console.log("Form data:", formData);
-		toast.success("Health provider added successfully!");
-		closeModal();
+	const handleSubmit = async () => {
+		try {
+			setIsLoading(true);
+			const session = await getSession();
+			const accessToken = session?.accessToken;
+
+			if (!accessToken) {
+				console.error("No access token found.");
+				toast.error("No access token found. Please log in again.");
+				return;
+			}
+
+			// Create FormData and append all fields individually
+			const formDataToSend = new FormData();
+
+			// Append basic fields
+			formDataToSend.append("name", formData.healthProviderName);
+			formDataToSend.append("provider_type", formData.providerType);
+			formDataToSend.append("provider_specialization", formData.specialization);
+			formDataToSend.append("description", formData.description);
+			formDataToSend.append("consultation_fee", formData.consultationFee);
+			formDataToSend.append("license_number", formData.licenseNumber);
+			formDataToSend.append("accreditation_body", formData.accreditationBody);
+			formDataToSend.append("certification_expiry_date", formData.expiryDate);
+			formDataToSend.append(
+				"certification_number",
+				formData.certificationNumber
+			);
+			formDataToSend.append("certificate_verification", "false");
+
+			// Append arrays as JSON strings
+			formDataToSend.append(
+				"emails",
+				JSON.stringify(formData.officeEmail ? [formData.officeEmail] : [])
+			);
+			formDataToSend.append("phone", JSON.stringify(formData.phoneNumbers));
+			formDataToSend.append("address", JSON.stringify(formData.addresses));
+			formDataToSend.append("coverage", JSON.stringify(formData.coverages));
+			formDataToSend.append("services", JSON.stringify(formData.services));
+
+			// Append files
+			if (formData.image) {
+				formDataToSend.append("image", formData.image);
+			}
+
+			if (formData.certificate) {
+				formDataToSend.append("certificate", formData.certificate);
+			}
+
+			// Log the form data for debugging
+			for (let [key, value] of formDataToSend.entries()) {
+				console.log(key, value);
+			}
+
+			const response = await axios.post(
+				"https://api.medbankr.ai/api/v1/administrator/provider",
+				formDataToSend,
+				{
+					headers: {
+						"Content-Type": "multipart/form-data",
+						Accept: "application/json",
+						Authorization: `Bearer ${accessToken}`,
+					},
+				}
+			);
+
+			if (response.data.status === "true") {
+				toast.success("Health provider added successfully!");
+				closeModal();
+			} else {
+				toast.error(response.data.message || "Failed to add health provider");
+			}
+		} catch (error) {
+			console.error("Error adding health provider:", error);
+			if (axios.isAxiosError(error)) {
+				toast.error(
+					error.response?.data?.message ||
+						"Failed to add health provider. Please try again."
+				);
+			} else {
+				toast.error("An unexpected error occurred. Please try again.");
+			}
+		} finally {
+			setIsLoading(false);
+		}
 	};
 
 	const handleReset = () => {
@@ -316,6 +430,7 @@ export function HospitalDataTable<TData, TValue>({
 			specialization: "",
 			description: "",
 			officeEmail: "",
+			phoneNumbers: [],
 			services: [],
 			addresses: [],
 			consultationFee: "",
@@ -328,8 +443,9 @@ export function HospitalDataTable<TData, TValue>({
 			certificatePreview: null,
 		});
 		setServiceSearch("");
+		setPhoneInput("");
 		setNewAddress({ street: "", city: "", state: "", country: "" });
-		setCoverageInput("");
+		setCoverageInput({ name: "", fee: "" });
 	};
 
 	// Sync `tableData` with `data` prop
@@ -492,15 +608,14 @@ export function HospitalDataTable<TData, TValue>({
 			<Modal
 				isOpen={isModalOpen}
 				onClose={closeModal}
-				className="modal "
+				className="modal"
 				title={`Add Health Provider ${
 					currentStep === 1 ? "(Step 1 of 2)" : "(Step 2 of 2)"
 				}`}>
 				{currentStep === 1 ? (
-					<div className="space-y-4 ">
+					<div className="space-y-4">
 						<div className="bg-gray-100 p-4 rounded-lg border border-gray-200">
 							<div className="bg-white p-4 rounded-lg shadow-sm">
-								{/* Column 1: Basic Info */}
 								<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 									{/* Column 1 */}
 									<div className="space-y-4">
@@ -555,7 +670,7 @@ export function HospitalDataTable<TData, TValue>({
 										{/* Health Provider Name */}
 										<div>
 											<label className="text-sm font-medium text-gray-700">
-												Health Provider Name
+												Health Provider Name *
 											</label>
 											<Input
 												name="healthProviderName"
@@ -563,13 +678,14 @@ export function HospitalDataTable<TData, TValue>({
 												onChange={handleInputChange}
 												placeholder="Enter health provider name"
 												className="mt-1"
+												required
 											/>
 										</div>
 
 										{/* Provider Type */}
 										<div>
 											<label className="text-sm font-medium text-gray-700">
-												Provider Type
+												Provider Type *
 											</label>
 											<RadioGroup
 												value={formData.providerType}
@@ -595,7 +711,7 @@ export function HospitalDataTable<TData, TValue>({
 										{/* Specialization */}
 										<div>
 											<label className="text-sm font-medium text-gray-700">
-												Specialization
+												Specialization *
 											</label>
 											<Input
 												name="specialization"
@@ -603,6 +719,7 @@ export function HospitalDataTable<TData, TValue>({
 												onChange={handleInputChange}
 												placeholder="Enter specialization"
 												className="mt-1"
+												required
 											/>
 										</div>
 
@@ -620,11 +737,14 @@ export function HospitalDataTable<TData, TValue>({
 												rows={3}
 											/>
 										</div>
+									</div>
 
+									{/* Column 2: Contact Information */}
+									<div className="space-y-4">
 										{/* Office Email */}
 										<div>
 											<label className="text-sm font-medium text-gray-700">
-												Office Email Address
+												Office Email Address *
 											</label>
 											<Input
 												name="officeEmail"
@@ -633,51 +753,85 @@ export function HospitalDataTable<TData, TValue>({
 												onChange={handleInputChange}
 												placeholder="Enter office email"
 												className="mt-1"
+												required
 											/>
 										</div>
-									</div>
 
-									{/* Column 2: Services */}
-									<div className="space-y-4">
-										<label className="text-sm font-medium text-gray-700">
-											Services
-										</label>
-										<div className="flex space-x-2">
-											<Input
-												value={serviceSearch}
-												onChange={(e) => setServiceSearch(e.target.value)}
-												placeholder="Search and add services"
-												className="flex-1"
-											/>
-											<Button type="button" onClick={addService}>
-												Add
-											</Button>
+										{/* Phone Numbers */}
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Phone Numbers *
+											</label>
+											<div className="flex space-x-2 mt-1">
+												<Input
+													value={phoneInput}
+													onChange={(e) => setPhoneInput(e.target.value)}
+													placeholder="Enter phone number"
+													className="flex-1"
+												/>
+												<Button type="button" onClick={addPhoneNumber}>
+													Add
+												</Button>
+											</div>
+											<div className="space-y-2 mt-2">
+												{formData.phoneNumbers.map((phone, index) => (
+													<div
+														key={index}
+														className="flex items-center justify-between bg-gray-100 px-3 py-2 rounded">
+														<span className="text-sm">{phone}</span>
+														<button
+															type="button"
+															onClick={() => removePhoneNumber(index)}
+															className="text-red-500 hover:text-red-700">
+															<IconX size={16} />
+														</button>
+													</div>
+												))}
+											</div>
 										</div>
-										<div className="space-y-2">
-											{formData.services.map((service, index) => (
-												<div
-													key={index}
-													className="flex items-center justify-between bg-gray-100 px-3 py-2 rounded">
-													<span className="text-sm">{service}</span>
-													<button
-														type="button"
-														onClick={() => removeService(index)}
-														className="text-red-500 hover:text-red-700">
-														<IconX size={16} />
-													</button>
-												</div>
-											))}
+
+										{/* Services */}
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Services *
+											</label>
+											<div className="flex space-x-2 mt-1">
+												<Input
+													value={serviceSearch}
+													onChange={(e) => setServiceSearch(e.target.value)}
+													placeholder="Enter service"
+													className="flex-1"
+												/>
+												<Button type="button" onClick={addService}>
+													Add
+												</Button>
+											</div>
+											<div className="space-y-2 mt-2">
+												{formData.services.map((service, index) => (
+													<div
+														key={index}
+														className="flex items-center justify-between bg-gray-100 px-3 py-2 rounded">
+														<span className="text-sm">{service}</span>
+														<button
+															type="button"
+															onClick={() => removeService(index)}
+															className="text-red-500 hover:text-red-700">
+															<IconX size={16} />
+														</button>
+													</div>
+												))}
+											</div>
 										</div>
 									</div>
 
 									{/* Column 3: Address */}
 									<div className="space-y-4">
 										<label className="text-sm font-medium text-gray-700">
-											Address
+											Address *
 										</label>
 										<div className="grid grid-cols-1 gap-2">
 											<Input
-												placeholder="Street"
+												placeholder="Street *"
 												value={newAddress.street}
 												onChange={(e) =>
 													setNewAddress({
@@ -687,14 +841,14 @@ export function HospitalDataTable<TData, TValue>({
 												}
 											/>
 											<Input
-												placeholder="City/LGA"
+												placeholder="City/LGA *"
 												value={newAddress.city}
 												onChange={(e) =>
 													setNewAddress({ ...newAddress, city: e.target.value })
 												}
 											/>
 											<Input
-												placeholder="State"
+												placeholder="State *"
 												value={newAddress.state}
 												onChange={(e) =>
 													setNewAddress({
@@ -704,7 +858,7 @@ export function HospitalDataTable<TData, TValue>({
 												}
 											/>
 											<Input
-												placeholder="Country"
+												placeholder="Country *"
 												value={newAddress.country}
 												onChange={(e) =>
 													setNewAddress({
@@ -770,7 +924,7 @@ export function HospitalDataTable<TData, TValue>({
 
 										<div>
 											<label className="text-sm font-medium text-gray-700">
-												Consultation Fee
+												Consultation Fee *
 											</label>
 											<Input
 												name="consultationFee"
@@ -779,21 +933,41 @@ export function HospitalDataTable<TData, TValue>({
 												onChange={handleInputChange}
 												placeholder="Enter consultation fee"
 												className="mt-1"
+												required
 											/>
 										</div>
 
 										<div>
 											<label className="text-sm font-medium text-gray-700">
-												Coverage
+												Coverage Plans
 											</label>
-											<div className="flex space-x-2 mt-1">
+											<div className="grid grid-cols-2 gap-2 mt-1">
 												<Input
-													value={coverageInput}
-													onChange={(e) => setCoverageInput(e.target.value)}
-													placeholder="Enter coverage"
+													value={coverageInput.name}
+													onChange={(e) =>
+														setCoverageInput({
+															...coverageInput,
+															name: e.target.value,
+														})
+													}
+													placeholder="Coverage name"
 												/>
-												<Button type="button" onClick={addCoverage}>
-													Add
+												<Input
+													type="number"
+													value={coverageInput.fee}
+													onChange={(e) =>
+														setCoverageInput({
+															...coverageInput,
+															fee: e.target.value,
+														})
+													}
+													placeholder="Fee amount"
+												/>
+												<Button
+													type="button"
+													onClick={addCoverage}
+													className="col-span-2">
+													Add Coverage
 												</Button>
 											</div>
 											<div className="space-y-2 mt-2">
@@ -801,7 +975,14 @@ export function HospitalDataTable<TData, TValue>({
 													<div
 														key={index}
 														className="flex items-center justify-between bg-gray-100 px-3 py-2 rounded">
-														<span className="text-sm">{coverage}</span>
+														<div>
+															<span className="text-sm font-medium">
+																{coverage.name}
+															</span>
+															<span className="text-sm text-gray-600 ml-2">
+																- ₦{coverage.fee.toLocaleString()}
+															</span>
+														</div>
 														<button
 															type="button"
 															onClick={() => removeCoverage(index)}
@@ -822,7 +1003,7 @@ export function HospitalDataTable<TData, TValue>({
 
 										<div>
 											<label className="text-sm font-medium text-gray-700">
-												License Number
+												License Number *
 											</label>
 											<Input
 												name="licenseNumber"
@@ -830,12 +1011,13 @@ export function HospitalDataTable<TData, TValue>({
 												onChange={handleInputChange}
 												placeholder="Enter license number"
 												className="mt-1"
+												required
 											/>
 										</div>
 
 										<div>
 											<label className="text-sm font-medium text-gray-700">
-												Accreditation Body
+												Accreditation Body *
 											</label>
 											<Input
 												name="accreditationBody"
@@ -843,12 +1025,13 @@ export function HospitalDataTable<TData, TValue>({
 												onChange={handleInputChange}
 												placeholder="Enter accreditation body"
 												className="mt-1"
+												required
 											/>
 										</div>
 
 										<div>
 											<label className="text-sm font-medium text-gray-700">
-												Expiry Date
+												Certification Expiry Date *
 											</label>
 											<Input
 												name="expiryDate"
@@ -856,12 +1039,13 @@ export function HospitalDataTable<TData, TValue>({
 												value={formData.expiryDate}
 												onChange={handleInputChange}
 												className="mt-1"
+												required
 											/>
 										</div>
 
 										<div>
 											<label className="text-sm font-medium text-gray-700">
-												Certification Number
+												Certification Number *
 											</label>
 											<Input
 												name="certificationNumber"
@@ -869,12 +1053,13 @@ export function HospitalDataTable<TData, TValue>({
 												onChange={handleInputChange}
 												placeholder="Enter certification number"
 												className="mt-1"
+												required
 											/>
 										</div>
 
 										<div>
 											<label className="text-sm font-medium text-gray-700">
-												Certificate
+												Certificate File
 											</label>
 											<div
 												className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer mt-1"
@@ -930,8 +1115,11 @@ export function HospitalDataTable<TData, TValue>({
 								onClick={handlePreviousStep}>
 								Back
 							</Button>
-							<Button onClick={handleSubmit} className="bg-secondary-1">
-								Submit
+							<Button
+								onClick={handleSubmit}
+								className="bg-secondary-1"
+								disabled={isLoading}>
+								{isLoading ? "Submitting..." : "Submit"}
 							</Button>
 						</div>
 					</div>

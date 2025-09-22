@@ -4,6 +4,7 @@ export const sidebarLinks = [
 		route: "/end-user",
 		imgUrl: "/icons/user.svg",
 	},
+
 	{
 		label: "Staff Management",
 		route: "/staff-management",
@@ -14,6 +15,11 @@ export const sidebarLinks = [
 		label: "Health Care Providers",
 		route: "/health-care-providers",
 		imgUrl: "/icons/health.svg",
+	},
+	{
+		label: "Waitlist Management",
+		route: "/waitlist-management",
+		imgUrl: "/icons/user.svg",
 	},
 ];
 

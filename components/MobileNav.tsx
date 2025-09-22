@@ -53,7 +53,7 @@ const MobileNav = () => {
 											<Link href="/" className="flex items-center gap-1">
 												<Image
 													src="/images/logo.png"
-													alt="Kuditrak Logo"
+													alt="Medbankr Logo"
 													width={100}
 													height={50}
 													className="w-fit justify-center h-[35px] flex flex-row"
@@ -64,8 +64,8 @@ const MobileNav = () => {
 												href="/"
 												className="flex items-center justify-center w-full min-w-[250px]">
 												<Image
-													src="/images/kudilogo.png"
-													alt="Kuditrak Logo"
+													src="/images/logo.png"
+													alt="Medbankr Logo"
 													width={150}
 													height={50}
 													className="w-[250px] h-auto object-contain"
