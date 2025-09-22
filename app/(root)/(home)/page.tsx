@@ -156,15 +156,6 @@ function Dashboard() {
 		fetchDashboardData();
 	}, []);
 
-	// Skeleton component for StatCard
-	const StatCardSkeleton = () => (
-		<div className="flex flex-col gap-2 p-4 border border-gray-200 rounded-lg bg-white">
-			<Skeleton className="h-4 w-3/4 bg-gray-300" />
-			<Skeleton className="h-8 w-1/2 bg-gray-300" />
-			<Skeleton className="h-3 w-1/3 bg-gray-300" />
-		</div>
-	);
-
 	// Main loading state
 	if (isLoading) {
 		return (
