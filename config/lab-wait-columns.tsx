@@ -32,8 +32,9 @@ export interface HospitalWaitlistUser {
 	designation: string;
 	phone: string;
 	email: string;
-	hospital_name: string;
-	hospital_address: string;
+	lab_name: string;
+	lab_address: string;
+
 	specialization: string;
 	mark_handled: boolean;
 	createdAt: string;
@@ -56,17 +57,6 @@ const LabWaitlistTable = () => {
 	);
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 	const [tableData, setTableData] = useState<HospitalWaitlistUser[]>([]);
-
-	// Open modal functions
-	const openRestoreModal = (row: { original: HospitalWaitlistUser }) => {
-		setSelectedRow(row.original);
-		setRestoreModalOpen(true);
-	};
-
-	const openDeleteModal = (row: { original: HospitalWaitlistUser }) => {
-		setSelectedRow(row.original);
-		setDeleteModalOpen(true);
-	};
 
 	// Close modal functions
 	const closeRestoreModal = () => setRestoreModalOpen(false);
@@ -103,8 +93,8 @@ const LabWaitlistTable = () => {
 				designation: item.designation,
 				phone: item.phone,
 				email: item.email,
-				hospital_name: item.hospital_name,
-				hospital_address: item.hospital_address,
+				lab_name: item.lab_name,
+				lab_address: item.lab_address,
 				specialization: item.specialization,
 				mark_handled: item.mark_handled,
 				createdAt: item.createdAt,
@@ -221,7 +211,7 @@ const LabWaitlistTable = () => {
 			},
 		},
 		{
-			accessorKey: "hospital_name",
+			accessorKey: "lab_name",
 			header: ({ column }) => (
 				<Button
 					variant="ghost"
