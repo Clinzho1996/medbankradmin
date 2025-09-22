@@ -6,7 +6,7 @@ import { ArrowUpDown } from "lucide-react";
 import Modal from "@/components/Modal";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { IconEdit, IconEye, IconEyeOff, IconTrash } from "@tabler/icons-react";
+import { IconEdit, IconTrash } from "@tabler/icons-react";
 import axios from "axios";
 import { getSession } from "next-auth/react";
 import dynamic from "next/dynamic";
@@ -21,14 +21,39 @@ const ReactQuill = dynamic(() => import("react-quill"), {
 });
 
 interface ApiResponse {
-	id: string;
+	status: boolean;
+	message: string;
+	data: {
+		pagination: {
+			total: number;
+			page: number;
+			limit: number;
+			pages: number;
+		};
+		data: BlogPost[];
+	};
+	error: string;
+}
+
+interface BlogPost {
+	_id: string;
 	post_title: string;
-	post_body: string;
-	post_image: string;
-	post_status: string;
-	post_author: string;
-	created_at: string;
-	updated_at: string;
+	category: string;
+	cover_image: string;
+	status: string;
+	author_name: string;
+	author_image: string;
+	content: string;
+	word_count: number;
+	likes: any[];
+	comments: any[];
+	share_count: number;
+	completion_rate: number;
+	view_count: number;
+	viewers: any[];
+	createdAt: string;
+	updatedAt: string;
+	__v: number;
 }
 
 declare module "next-auth" {
@@ -42,10 +67,15 @@ export type Post = {
 	featuredImage: string;
 	title: string;
 	content: string;
+	category: string;
 	post_status: string;
 	post_author: string;
+	author_image: string;
 	created_at: string;
 	updated_at: string;
+	word_count: number;
+	view_count: number;
+	share_count: number;
 };
 
 interface PostTableComponentProps {
@@ -110,6 +140,7 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 		setSelectedRow(row.original);
 		setPostTitle(row.original.title);
 		setContent(row.original.content);
+		setCategory(row.original.category);
 		setStatus(row.original.post_status);
 		setPreviewImage(row.original.featuredImage);
 		setEditModalOpen(true);
@@ -278,7 +309,7 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 				return;
 			}
 
-			const response = await axios.get<{ data: ApiResponse[] }>(
+			const response = await axios.get<ApiResponse>(
 				"https://api.medbankr.ai/api/v1/administrator/blog",
 				{
 					headers: {
@@ -288,19 +319,24 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 				}
 			);
 
-			const fetchedData = response.data.data;
+			const fetchedData = response.data.data.data;
 
 			console.log("Post Data:", fetchedData);
 
 			const mappedData = fetchedData.map((item) => ({
-				id: item.id,
+				id: item._id,
 				title: item.post_title,
-				content: item.post_body,
-				featuredImage: item.post_image,
-				post_status: item.post_status,
-				post_author: item.post_author,
-				created_at: item.created_at,
-				updated_at: item.updated_at,
+				content: item.content,
+				category: item.category,
+				featuredImage: item.cover_image,
+				post_status: item.status,
+				post_author: item.author_name,
+				author_image: item.author_image,
+				created_at: item.createdAt,
+				updated_at: item.updatedAt,
+				word_count: item.word_count,
+				view_count: item.view_count,
+				share_count: item.share_count,
 			}));
 
 			setTableData(mappedData);
@@ -347,8 +383,11 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 			header: "ID",
 			cell: ({ row }) => {
 				const id = row.getValue<string>("id");
-
-				return <span className="text-xs text-primary-6">{id}</span>;
+				return (
+					<span className="text-xs text-primary-6">
+						{id.length > 10 ? `${id.slice(0, 10)}...` : id}
+					</span>
+				);
 			},
 		},
 		{
@@ -372,9 +411,9 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 				return (
 					<Image
 						src={featuredImage}
-						alt={featuredImage}
-						width={120}
-						height={120}
+						alt="Featured image"
+						width={100}
+						height={100}
 						className="post w-[100px] h-[100px] object-cover"
 					/>
 				);
@@ -397,8 +436,27 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 			},
 			cell: ({ row }) => {
 				const title = row.getValue<string>("title");
-
 				return <span className="text-xs text-dark">{title}</span>;
+			},
+		},
+		{
+			accessorKey: "category",
+			header: ({ column }) => {
+				return (
+					<Button
+						variant="ghost"
+						className="text-[13px] text-left"
+						onClick={() =>
+							column.toggleSorting(column.getIsSorted() === "asc")
+						}>
+						Category
+						<ArrowUpDown className="ml-2 h-4 w-4" />
+					</Button>
+				);
+			},
+			cell: ({ row }) => {
+				const category = row.getValue<string>("category");
+				return <span className="text-xs text-primary-6">{category}</span>;
 			},
 		},
 		{
@@ -418,7 +476,6 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 			},
 			cell: ({ row }) => {
 				const content = row.getValue<string>("content");
-
 				return (
 					<span className="text-xs text-primary-6">
 						{content.length > 150 ? content.slice(0, 150) + "..." : content}
@@ -432,7 +489,7 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 			cell: ({ row }) => {
 				const status = row.getValue<string>("post_status");
 				const statusColor =
-					status === "publish" ? "text-green-600" : "text-yellow-600";
+					status === "publish" ? "status green" : "status red";
 
 				return (
 					<span className={`text-xs font-medium ${statusColor}`}>
@@ -442,11 +499,18 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 			},
 		},
 		{
+			accessorKey: "view_count",
+			header: "Views",
+			cell: ({ row }) => {
+				const views = row.getValue<number>("view_count");
+				return <span className="text-xs text-primary-6">{views}</span>;
+			},
+		},
+		{
 			id: "actions",
 			header: "Action",
 			cell: ({ row }) => {
 				const post = row.original;
-				const isPublished = post.post_status === "publish";
 
 				return (
 					<div className="flex flex-row justify-start items-center gap-3">
@@ -460,19 +524,6 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 							className="border-[#E8E8E8] border-[1px] text-sm font-medium text-[#6B7280] font-inter"
 							onClick={() => openEditModal(row)}>
 							<IconEdit />
-						</Button>
-
-						<Button
-							className={`border-[#E8E8E8] border-[1px] text-sm font-medium font-inter ${
-								isPublished ? "text-red-600" : "text-green-600"
-							}`}
-							onClick={() =>
-								handlePublishUnpublish(
-									post.id,
-									isPublished ? "draft" : "publish"
-								)
-							}>
-							{isPublished ? <IconEyeOff /> : <IconEye />}
 						</Button>
 
 						<Button
