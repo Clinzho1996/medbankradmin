@@ -278,7 +278,10 @@ function Dashboard() {
 							/>
 							<StatCard
 								title="User Retention Rate"
-								value={dashboardData.user_retention_rate.total}
+								value={
+									Math.round(dashboardData.user_retention_rate.total * 1000) /
+									1000
+								}
 								percentage={`${dashboardData.user_retention_rate.percentage_change.toFixed(
 									1
 								)}%`}
