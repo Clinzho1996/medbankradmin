@@ -370,7 +370,7 @@ const HospitalTable = () => {
 
 				return (
 					<div className="flex flex-row justify-start items-center gap-3">
-						<Link href={`/health-care-providers/lab/${lab.id}`}>
+						<Link href={`/health-care-providers/hospital/${lab.id}`}>
 							<Button className="border border-[#E8E8E8]">View Details</Button>
 						</Link>
 

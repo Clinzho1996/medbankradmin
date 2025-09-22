@@ -314,6 +314,14 @@ const LabTable = () => {
 			},
 		},
 		{
+			accessorKey: "email",
+			header: "Primary Email",
+			cell: ({ row }) => {
+				const name = row.getValue<string>("email") || "Unnamed Laboratory";
+				return <span className="text-xs text-primary-6">{name}</span>;
+			},
+		},
+		{
 			accessorKey: "specialization",
 			header: "Specialization",
 			cell: ({ row }) => {
