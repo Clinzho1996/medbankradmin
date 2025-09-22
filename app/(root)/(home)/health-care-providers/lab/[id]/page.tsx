@@ -33,10 +33,6 @@ export type Staff = {
 	is_active: boolean;
 };
 
-interface ApiResponse {
-	data: Staff; // Adjust to match your API structure
-}
-
 function LabDetails() {
 	const { id } = useParams();
 
