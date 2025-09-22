@@ -651,7 +651,7 @@ const PostTableComponent = ({ refreshKey }: PostTableComponentProps) => {
 							</Button>
 							<Button
 								onClick={handleUpdatePost}
-								className="bg-primary-2 text-white font-inter text-xs"
+								className="bg-primary-1 text-white font-inter text-xs"
 								disabled={isLoading}>
 								{isLoading ? "Updating Post..." : "Update Post"}
 							</Button>
