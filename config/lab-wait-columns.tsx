@@ -217,12 +217,12 @@ const LabWaitlistTable = () => {
 					variant="ghost"
 					className="text-[13px] text-left"
 					onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-					Hospital Name
+					Laboratory Name
 					<ArrowUpDown className="ml-2 h-4 w-4" />
 				</Button>
 			),
 			cell: ({ row }) => {
-				const hospitalName = row.getValue<string>("hospital_name");
+				const hospitalName = row.getValue<string>("lab_name");
 				return <span className="text-xs text-primary-6">{hospitalName}</span>;
 			},
 		},
