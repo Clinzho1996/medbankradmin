@@ -247,7 +247,7 @@ const HospitalTable = () => {
 				}
 			);
 
-			if (response.data.status === "true") {
+			if (response.data.status === true) {
 				// Remove the deleted laboratory from the table
 				setTableData((prevData) => prevData.filter((lab) => lab.id !== id));
 				toast.success("Laboratory deleted successfully.");

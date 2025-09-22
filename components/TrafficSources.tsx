@@ -47,7 +47,7 @@ function TrafficSources() {
 			}
 
 			const response = await axios.get<ApiResponse>(
-				`https://api.medbankr.ai/api/v1/administrator/dashboard/traffic?preiod=${period}`,
+				`https://api.medbankr.ai/api/v1/administrator/dashboard/traffic?period=${period}`,
 				{
 					headers: {
 						Accept: "application/json",
