@@ -31,7 +31,7 @@ const StatCard: React.FC<StatCardProps> = ({
 					className={`flex items-center text-sm font-medium ${
 						positive ? "text-green-600" : "text-red"
 					}`}>
-					{positive ? "+" : "-"} {percentage}
+					{positive ? "+" : ""} {percentage}
 					{positive ? (
 						<ArrowUp className="w-4 h-4 ml-1" />
 					) : (

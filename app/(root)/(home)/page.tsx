@@ -43,11 +43,16 @@ interface DashboardData {
 	};
 }
 
+interface DocumentData {
+	total: number;
+	percentage_change: number;
+}
 function Dashboard() {
 	const [dashboardData, setDashboardData] = useState<DashboardData | null>(
 		null
 	);
 	const [isLoading, setIsLoading] = useState(true);
+	const [document, setDocument] = useState<DocumentData | null>(null);
 	const [additionalStats, setAdditionalStats] = useState({
 		totalActiveAppointments: 0,
 		totalSpecialistProvider: 0,
@@ -110,8 +115,44 @@ function Dashboard() {
 		}
 	};
 
+	const fetchDocumentData = async () => {
+		try {
+			setIsLoading(true);
+			const session = await getSession();
+			const accessToken = session?.accessToken;
+
+			if (!accessToken) {
+				console.error("No access token found.");
+				toast.error("No access token found. Please log in again.");
+				return;
+			}
+
+			const response = await axios.get(
+				"https://api.medbankr.ai/api/v1/administrator/dashboard/document",
+				{
+					headers: {
+						Accept: "application/json",
+						Authorization: `Bearer ${accessToken}`,
+					},
+				}
+			);
+
+			if (response.data.status === true) {
+				setDocument(response.data.data);
+			} else {
+				toast.error("Failed to fetch dashboard data.");
+			}
+		} catch (error) {
+			console.error("Error fetching dashboard data:", error);
+			toast.error("Failed to fetch dashboard data. Please try again.");
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
 	useEffect(() => {
 		fetchDashboardData();
+		fetchDocumentData();
 	}, []);
 
 	if (isLoading) {
@@ -222,9 +263,9 @@ function Dashboard() {
 						<div className="flex flex-row justify-between items-center w-full gap-3">
 							<StatCard
 								title="Total Documents"
-								value={additionalStats.totalDocuments}
-								percentage="22%"
-								positive
+								value={document?.total ?? 0}
+								percentage={`${document?.percentage_change?.toFixed(1) ?? 0}%`}
+								positive={(document?.percentage_change ?? 0) >= 0}
 							/>
 
 							<StatCard
