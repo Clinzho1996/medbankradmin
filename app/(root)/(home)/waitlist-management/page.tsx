@@ -9,6 +9,10 @@ function UserManagement() {
 	return (
 		<div>
 			<HeaderBox title="Waitlist Management" />
+			<p className="text-sm text-[#6C7278] font-normal mb-4 p-3 bg-[#F4F6F8] border border-[#6C72781A]">
+				To manage all waitlist user accounts (end-user, hospital and diagnostic
+				providers) on the MedBankr platform.
+			</p>
 
 			<div className="w-full sm:w-[98%] mx-auto bg-white rounded-lg py-5 border-[1px] border-b-[1px] border-[#E2E4E9] mt-4">
 				<Tabs defaultValue="user" className="bg-transparent">
