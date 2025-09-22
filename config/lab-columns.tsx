@@ -38,10 +38,25 @@ interface ApiResponse {
 	name: string;
 	provider_type: string;
 	provider_specialization: string;
-	emails: string[];
+	emails: string[]; // This is an array of JSON strings
 	status: string;
 	createdAt: string;
 	updatedAt: string;
+	phone?: string[]; // Array of JSON strings
+	address?: Array<{
+		street: string;
+		city: string;
+		state: string;
+		country: string;
+		_id: string;
+	}>;
+	consultation_fee?: number;
+	coverage?: Array<{
+		name: string;
+		fee: number;
+		_id: string;
+	}>;
+	services?: string[]; // Array of JSON strings
 }
 
 declare module "next-auth" {
@@ -61,15 +76,37 @@ const LabTable = () => {
 		name: "",
 		email: "",
 		specialization: "",
-		provider_type: "hospital",
+		provider_type: "laboratory",
 	});
+
+	// Helper function to parse JSON strings from arrays
+	const parseJsonArray = (array: string[]): string[] => {
+		if (!array || !Array.isArray(array)) return [];
+
+		return array.flatMap((item) => {
+			try {
+				// Try to parse the JSON string
+				const parsed = JSON.parse(item);
+				// If it's an array, return its items, otherwise wrap it in an array
+				return Array.isArray(parsed) ? parsed : [parsed];
+			} catch (error) {
+				// If parsing fails, return the original item as a string
+				return [item];
+			}
+		});
+	};
 
 	const openEditModal = (row: any) => {
 		const hospital = row.original;
+
+		// Parse the email from the emails array
+		const emails = parseJsonArray(hospital.rawEmails || []);
+		const primaryEmail = emails[0] || "";
+
 		setEditData({
 			id: hospital.id,
 			name: hospital.name || "",
-			email: hospital.email,
+			email: primaryEmail,
 			specialization: hospital.specialization,
 			provider_type: hospital.provider_type,
 		});
@@ -96,7 +133,7 @@ const LabTable = () => {
 				{
 					name: editData.name,
 					provider_specialization: editData.specialization,
-					emails: [editData.email],
+					emails: [editData.email], // Send as array
 					provider_type: editData.provider_type,
 				},
 				{
@@ -108,13 +145,13 @@ const LabTable = () => {
 			);
 
 			if (response.data.status === "true") {
-				toast.success("Hospital updated successfully.");
+				toast.success("Laboratory updated successfully.");
 				fetchHospitals(); // Refresh the table data
 				closeEditModal();
 			}
 		} catch (error) {
-			console.error("Error updating hospital:", error);
-			toast.error("Failed to update hospital. Please try again.");
+			console.error("Error updating laboratory:", error);
+			toast.error("Failed to update laboratory. Please try again.");
 		} finally {
 			setIsLoading(false);
 		}
@@ -151,26 +188,36 @@ const LabTable = () => {
 				}
 			);
 
-			if (response.data.status === "true") {
+			// CORRECTED LOGIC: Check the top-level status property
+			if (response.data.status === true) {
 				// Map the API response to match the `Hospital` type
-				const formattedData = response.data.data.map(
-					(hospital: ApiResponse) => ({
-						id: hospital._id,
-						name: hospital.name,
-						date: hospital.createdAt,
-						specialization: hospital.provider_specialization,
-						status: hospital.status,
-						email: hospital.emails[0] || "No email",
-						provider_type: hospital.provider_type,
-					})
-				);
+				const formattedData = response.data.data.map((lab: ApiResponse) => {
+					const emails = parseJsonArray(lab.emails || []);
+					const primaryEmail = emails[0] || "No email";
+
+					return {
+						id: lab._id,
+						name: lab.name,
+						date: lab.createdAt,
+						specialization: lab.provider_specialization,
+						status: lab.status,
+						email: primaryEmail,
+						provider_type: lab.provider_type,
+						rawEmails: lab.emails,
+						phone: lab.phone ? parseJsonArray(lab.phone) : [],
+						address: lab.address || [],
+						consultation_fee: lab.consultation_fee,
+						coverage: lab.coverage || [],
+						services: lab.services ? parseJsonArray(lab.services) : [],
+					};
+				});
 
 				setTableData(formattedData);
-				console.log("Laboratory Data:", formattedData);
+				console.log("Laboratory Data:", formattedData); // This will now log
 			}
 		} catch (error) {
-			console.error("Error fetching hospital data:", error);
-			toast.error("Failed to fetch hospitals. Please try again.");
+			console.error("Error fetching laboratory data:", error);
+			toast.error("Failed to fetch laboratories. Please try again.");
 		} finally {
 			setIsLoading(false);
 		}
@@ -201,15 +248,13 @@ const LabTable = () => {
 			);
 
 			if (response.data.status === "true") {
-				// Remove the deleted hospital from the table
-				setTableData((prevData) =>
-					prevData.filter((hospital) => hospital.id !== id)
-				);
-				toast.success("Hospital deleted successfully.");
+				// Remove the deleted laboratory from the table
+				setTableData((prevData) => prevData.filter((lab) => lab.id !== id));
+				toast.success("Laboratory deleted successfully.");
 			}
 		} catch (error) {
-			console.error("Error deleting hospital:", error);
-			toast.error("Failed to delete hospital. Please try again.");
+			console.error("Error deleting laboratory:", error);
+			toast.error("Failed to delete laboratory. Please try again.");
 		}
 	};
 
@@ -251,11 +296,11 @@ const LabTable = () => {
 			accessorKey: "id",
 			header: "User ID",
 			cell: ({ row }) => {
-				const hospital = row.getValue<string>("id");
+				const lab = row.getValue<string>("id");
 
 				return (
 					<span className="text-xs text-primary-6">
-						{hospital.length > 10 ? `${hospital.slice(0, 10)}...` : hospital}
+						{lab.length > 10 ? `${lab.slice(0, 10)}...` : lab}
 					</span>
 				);
 			},
@@ -264,7 +309,7 @@ const LabTable = () => {
 			accessorKey: "name",
 			header: "Laboratory Name",
 			cell: ({ row }) => {
-				const name = row.getValue<string>("name") || "SmartDNA";
+				const name = row.getValue<string>("name") || "Unnamed Laboratory";
 				return <span className="text-xs text-primary-6">{name}</span>;
 			},
 		},
@@ -273,7 +318,7 @@ const LabTable = () => {
 			header: "Specialization",
 			cell: ({ row }) => {
 				const specialization =
-					row.getValue<string>("specialization") || "Medical Tourism";
+					row.getValue<string>("specialization") || "Not specified";
 				return <span className="text-xs text-primary-6">{specialization}</span>;
 			},
 		},
@@ -296,7 +341,7 @@ const LabTable = () => {
 				const status = row.getValue<string>("status");
 				return (
 					<div className={`status ${status === "active" ? "green" : "red"}`}>
-						{status}
+						{status || "pending"}
 					</div>
 				);
 			},
@@ -313,11 +358,11 @@ const LabTable = () => {
 			id: "actions",
 			header: "Action",
 			cell: ({ row }) => {
-				const hospital = row.original;
+				const lab = row.original;
 
 				return (
 					<div className="flex flex-row justify-start items-center gap-3">
-						<Link href={`/health-care-providers/lab/${hospital.id}`}>
+						<Link href={`/health-care-providers/lab/${lab.id}`}>
 							<Button className="border border-[#E8E8E8]">View Details</Button>
 						</Link>
 
@@ -350,7 +395,7 @@ const LabTable = () => {
 								<p className="text-xs text-primary-6">Laboratory Name</p>
 								<Input
 									type="text"
-									placeholder="Enter Hospital Name"
+									placeholder="Enter Laboratory Name"
 									className="focus:border-none mt-2"
 									value={editData.name}
 									onChange={(e) =>

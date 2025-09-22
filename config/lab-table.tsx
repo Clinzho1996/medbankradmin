@@ -15,7 +15,11 @@ import {
 } from "@tanstack/react-table";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
 
+import Modal from "@/components/Modal";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import {
 	Select,
@@ -32,7 +36,12 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { IconFileExport, IconPlus, IconTrash } from "@tabler/icons-react";
+import {
+	IconFileExport,
+	IconPlus,
+	IconTrash,
+	IconX,
+} from "@tabler/icons-react";
 import axios from "axios";
 import {
 	ChevronLeft,
@@ -41,7 +50,7 @@ import {
 	ChevronsRight,
 } from "lucide-react";
 import { getSession } from "next-auth/react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { DateRange } from "react-day-picker";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
@@ -66,6 +75,38 @@ interface ApiResponse {
 	status?: string;
 }
 
+interface HealthProviderFormData {
+	// Step 1
+	image: File | null;
+	imagePreview: string | null;
+	healthProviderName: string;
+	providerType: "hospital" | "laboratory";
+	specialization: string;
+	description: string;
+	officeEmail: string;
+	phoneNumbers: string[];
+	services: string[];
+	addresses: Array<{
+		street: string;
+		city: string;
+		state: string;
+		country: string;
+	}>;
+
+	// Step 2
+	consultationFee: string;
+	coverages: Array<{
+		name: string;
+		fee: number;
+	}>;
+	licenseNumber: string;
+	accreditationBody: string;
+	expiryDate: string;
+	certificationNumber: string;
+	certificate: File | null;
+	certificatePreview: string | null;
+}
+
 export function LabDataTable<TData, TValue>({
 	columns,
 	data,
@@ -80,10 +121,357 @@ export function LabDataTable<TData, TValue>({
 	const [selectedStatus, setSelectedStatus] = useState<string>("View All");
 	const [globalFilter, setGlobalFilter] = useState("");
 	const [isModalOpen, setModalOpen] = useState(false);
-	const [tableData, setTableData] = useState<TData[]>(data);
 	const [isLoading, setIsLoading] = useState(false);
-
+	const [tableData, setTableData] = useState<TData[]>(data);
+	const [currentStep, setCurrentStep] = useState(1);
+	const [serviceSearch, setServiceSearch] = useState("");
+	const [phoneInput, setPhoneInput] = useState("");
 	const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+	const [newAddress, setNewAddress] = useState({
+		street: "",
+		city: "",
+		state: "",
+		country: "",
+	});
+	const [coverageInput, setCoverageInput] = useState({
+		name: "",
+		fee: "",
+	});
+
+	const [formData, setFormData] = useState<HealthProviderFormData>({
+		image: null,
+		imagePreview: null,
+		healthProviderName: "",
+		providerType: "hospital",
+		specialization: "",
+		description: "",
+		officeEmail: "",
+		phoneNumbers: [],
+		services: [],
+		addresses: [],
+		consultationFee: "",
+		coverages: [],
+		licenseNumber: "",
+		accreditationBody: "",
+		expiryDate: "",
+		certificationNumber: "",
+		certificate: null,
+		certificatePreview: null,
+	});
+
+	const imageInputRef = useRef<HTMLInputElement>(null);
+	const certificateInputRef = useRef<HTMLInputElement>(null);
+
+	const openModal = () => setModalOpen(true);
+	const closeModal = () => {
+		setModalOpen(false);
+		setCurrentStep(1);
+		setFormData({
+			image: null,
+			imagePreview: null,
+			healthProviderName: "",
+			providerType: "hospital",
+			specialization: "",
+			description: "",
+			officeEmail: "",
+			phoneNumbers: [],
+			services: [],
+			addresses: [],
+			consultationFee: "",
+			coverages: [],
+			licenseNumber: "",
+			accreditationBody: "",
+			expiryDate: "",
+			certificationNumber: "",
+			certificate: null,
+			certificatePreview: null,
+		});
+		setServiceSearch("");
+		setPhoneInput("");
+		setNewAddress({ street: "", city: "", state: "", country: "" });
+		setCoverageInput({ name: "", fee: "" });
+	};
+
+	const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (file) {
+			const preview = URL.createObjectURL(file);
+			setFormData({
+				...formData,
+				image: file,
+				imagePreview: preview,
+			});
+		}
+	};
+
+	const handleCertificateUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (file) {
+			const preview = URL.createObjectURL(file);
+			setFormData({
+				...formData,
+				certificate: file,
+				certificatePreview: preview,
+			});
+		}
+	};
+
+	const removeImage = () => {
+		if (formData.imagePreview) {
+			URL.revokeObjectURL(formData.imagePreview);
+		}
+		setFormData({
+			...formData,
+			image: null,
+			imagePreview: null,
+		});
+	};
+
+	const removeCertificate = () => {
+		if (formData.certificatePreview) {
+			URL.revokeObjectURL(formData.certificatePreview);
+		}
+		setFormData({
+			...formData,
+			certificate: null,
+			certificatePreview: null,
+		});
+	};
+
+	const addService = () => {
+		if (
+			serviceSearch.trim() &&
+			!formData.services.includes(serviceSearch.trim())
+		) {
+			setFormData({
+				...formData,
+				services: [...formData.services, serviceSearch.trim()],
+			});
+			setServiceSearch("");
+		}
+	};
+
+	const removeService = (index: number) => {
+		const newServices = [...formData.services];
+		newServices.splice(index, 1);
+		setFormData({ ...formData, services: newServices });
+	};
+
+	const addPhoneNumber = () => {
+		if (
+			phoneInput.trim() &&
+			!formData.phoneNumbers.includes(phoneInput.trim())
+		) {
+			setFormData({
+				...formData,
+				phoneNumbers: [...formData.phoneNumbers, phoneInput.trim()],
+			});
+			setPhoneInput("");
+		}
+	};
+
+	const removePhoneNumber = (index: number) => {
+		const newPhoneNumbers = [...formData.phoneNumbers];
+		newPhoneNumbers.splice(index, 1);
+		setFormData({ ...formData, phoneNumbers: newPhoneNumbers });
+	};
+
+	const addAddress = () => {
+		if (
+			newAddress.street &&
+			newAddress.city &&
+			newAddress.state &&
+			newAddress.country
+		) {
+			setFormData({
+				...formData,
+				addresses: [...formData.addresses, { ...newAddress }],
+			});
+			setNewAddress({ street: "", city: "", state: "", country: "" });
+		}
+	};
+
+	const removeAddress = (index: number) => {
+		const newAddresses = [...formData.addresses];
+		newAddresses.splice(index, 1);
+		setFormData({ ...formData, addresses: newAddresses });
+	};
+
+	const addCoverage = () => {
+		if (coverageInput.name.trim()) {
+			setFormData({
+				...formData,
+				coverages: [
+					...formData.coverages,
+					{
+						name: coverageInput.name.trim(),
+						fee: parseInt(coverageInput.fee) || 0,
+					},
+				],
+			});
+			setCoverageInput({ name: "", fee: "" });
+		}
+	};
+
+	const removeCoverage = (index: number) => {
+		const newCoverages = [...formData.coverages];
+		newCoverages.splice(index, 1);
+		setFormData({ ...formData, coverages: newCoverages });
+	};
+
+	const handleInputChange = (
+		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+	) => {
+		const { name, value } = e.target;
+		setFormData({ ...formData, [name]: value });
+	};
+
+	const handleNextStep = () => {
+		setCurrentStep(2);
+	};
+
+	const handlePreviousStep = () => {
+		setCurrentStep(1);
+	};
+
+	const handleSubmit = async () => {
+		try {
+			setIsLoading(true);
+			const session = await getSession();
+			const accessToken = session?.accessToken;
+
+			if (!accessToken) {
+				console.error("No access token found.");
+				toast.error("No access token found. Please log in again.");
+				return;
+			}
+
+			// Create FormData and append all fields individually
+			const formDataToSend = new FormData();
+
+			// Append basic fields
+			formDataToSend.append("name", formData.healthProviderName);
+			formDataToSend.append("provider_type", formData.providerType);
+			formDataToSend.append("provider_specialization", formData.specialization);
+			formDataToSend.append("description", formData.description);
+			formDataToSend.append("consultation_fee", formData.consultationFee);
+			formDataToSend.append("license_number", formData.licenseNumber);
+			formDataToSend.append("accreditation_body", formData.accreditationBody);
+			formDataToSend.append("certification_expiry_date", formData.expiryDate);
+			formDataToSend.append(
+				"certification_number",
+				formData.certificationNumber
+			);
+			formDataToSend.append("certificate_verification", "false");
+
+			// Append arrays as actual objects (not JSON strings)
+			formDataToSend.append(
+				"emails",
+				JSON.stringify(formData.officeEmail ? [formData.officeEmail] : [])
+			);
+			formDataToSend.append("phone", JSON.stringify(formData.phoneNumbers));
+
+			// FIX: Send address as object, not JSON string
+			// If you have multiple addresses, send the first one (or modify backend to accept array)
+			if (formData.addresses.length > 0) {
+				// Send the first address as an object
+				const address = formData.addresses[0];
+				formDataToSend.append("address[street]", address.street);
+				formDataToSend.append("address[city]", address.city);
+				formDataToSend.append("address[state]", address.state);
+				formDataToSend.append("address[country]", address.country);
+			} else {
+				// Append empty address fields if no address provided
+				formDataToSend.append("address[street]", "");
+				formDataToSend.append("address[city]", "");
+				formDataToSend.append("address[state]", "");
+				formDataToSend.append("address[country]", "");
+			}
+
+			// FIX: Send coverages as array of objects
+			formData.coverages.forEach((coverage, index) => {
+				formDataToSend.append(`coverage[${index}][name]`, coverage.name);
+				formDataToSend.append(
+					`coverage[${index}][fee]`,
+					coverage.fee.toString()
+				);
+			});
+
+			formDataToSend.append("services", JSON.stringify(formData.services));
+
+			// Append files
+			if (formData.image) {
+				formDataToSend.append("provider_image", formData.image);
+			}
+
+			if (formData.certificate) {
+				formDataToSend.append("certificate_file", formData.certificate);
+			}
+
+			// Log the form data for debugging
+			for (let [key, value] of formDataToSend.entries()) {
+				console.log(key, value);
+			}
+
+			const response = await axios.post(
+				"https://api.medbankr.ai/api/v1/administrator/provider",
+				formDataToSend,
+				{
+					headers: {
+						"Content-Type": "multipart/form-data",
+						Accept: "application/json",
+						Authorization: `Bearer ${accessToken}`,
+					},
+				}
+			);
+
+			if (response.data.status === true) {
+				toast.success("Health provider added successfully!");
+				closeModal();
+			} else {
+				toast.error(response.data.message || "Failed to add health provider");
+			}
+		} catch (error) {
+			console.error("Error adding health provider:", error);
+			if (axios.isAxiosError(error)) {
+				toast.error(
+					error.response?.data?.message ||
+						"Failed to add health provider. Please try again."
+				);
+			} else {
+				toast.error("An unexpected error occurred. Please try again.");
+			}
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	const handleReset = () => {
+		setFormData({
+			image: null,
+			imagePreview: null,
+			healthProviderName: "",
+			providerType: "hospital",
+			specialization: "",
+			description: "",
+			officeEmail: "",
+			phoneNumbers: [],
+			services: [],
+			addresses: [],
+			consultationFee: "",
+			coverages: [],
+			licenseNumber: "",
+			accreditationBody: "",
+			expiryDate: "",
+			certificationNumber: "",
+			certificate: null,
+			certificatePreview: null,
+		});
+		setServiceSearch("");
+		setPhoneInput("");
+		setNewAddress({ street: "", city: "", state: "", country: "" });
+		setCoverageInput({ name: "", fee: "" });
+	};
 
 	// Sync `tableData` with `data` prop
 	useEffect(() => {
@@ -242,6 +630,528 @@ export function LabDataTable<TData, TValue>({
 
 	return (
 		<div className="rounded-lg border-[1px] py-0">
+			<Modal
+				isOpen={isModalOpen}
+				onClose={closeModal}
+				className="modal"
+				title={`Add Health Provider ${
+					currentStep === 1 ? "(Step 1 of 2)" : "(Step 2 of 2)"
+				}`}>
+				{currentStep === 1 ? (
+					<div className="space-y-4">
+						<div className="bg-gray-100 p-4 rounded-lg border border-gray-200">
+							<div className="bg-white p-4 rounded-lg shadow-sm">
+								<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+									{/* Column 1 */}
+									<div className="space-y-4">
+										{/* Image Upload */}
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Health Provider Image
+											</label>
+											<div
+												className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer mt-1"
+												onClick={() => imageInputRef.current?.click()}>
+												{formData.imagePreview ? (
+													<div className="relative">
+														<img
+															src={formData.imagePreview}
+															alt="Preview"
+															className="w-full h-32 object-cover rounded-md"
+														/>
+														<button
+															type="button"
+															className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1"
+															onClick={(e) => {
+																e.stopPropagation();
+																removeImage();
+															}}>
+															<IconX size={16} />
+														</button>
+													</div>
+												) : (
+													<>
+														<div className="text-gray-400 mb-2">
+															<IconPlus size={24} className="mx-auto" />
+														</div>
+														<p className="text-sm text-gray-500">
+															Click to upload image
+														</p>
+														<p className="text-xs text-gray-400">
+															JPEG, PNG (max 10MB)
+														</p>
+													</>
+												)}
+												<input
+													type="file"
+													ref={imageInputRef}
+													className="hidden"
+													onChange={handleImageUpload}
+													accept="image/jpeg,image/png"
+												/>
+											</div>
+										</div>
+
+										{/* Health Provider Name */}
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Health Provider Name *
+											</label>
+											<Input
+												name="healthProviderName"
+												value={formData.healthProviderName}
+												onChange={handleInputChange}
+												placeholder="Enter health provider name"
+												className="mt-1"
+												required
+											/>
+										</div>
+
+										{/* Provider Type */}
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Provider Type *
+											</label>
+											<RadioGroup
+												value={formData.providerType}
+												onValueChange={(value: "hospital" | "laboratory") =>
+													setFormData({ ...formData, providerType: value })
+												}
+												className="flex space-x-4 mt-1">
+												<div className="flex items-center space-x-2">
+													<RadioGroupItem value="hospital" id="hospital" />
+													<label htmlFor="hospital" className="text-sm">
+														Hospital
+													</label>
+												</div>
+												<div className="flex items-center space-x-2">
+													<RadioGroupItem value="laboratory" id="laboratory" />
+													<label htmlFor="laboratory" className="text-sm">
+														Laboratory
+													</label>
+												</div>
+											</RadioGroup>
+										</div>
+
+										{/* Specialization */}
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Specialization *
+											</label>
+											<Input
+												name="specialization"
+												value={formData.specialization}
+												onChange={handleInputChange}
+												placeholder="Enter specialization"
+												className="mt-1"
+												required
+											/>
+										</div>
+
+										{/* Description */}
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Description
+											</label>
+											<Textarea
+												name="description"
+												value={formData.description}
+												onChange={handleInputChange}
+												placeholder="Enter description"
+												className="mt-1"
+												rows={3}
+											/>
+										</div>
+									</div>
+
+									{/* Column 2: Contact Information */}
+									<div className="space-y-4">
+										{/* Office Email */}
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Office Email Address *
+											</label>
+											<Input
+												name="officeEmail"
+												type="email"
+												value={formData.officeEmail}
+												onChange={handleInputChange}
+												placeholder="Enter office email"
+												className="mt-1"
+												required
+											/>
+										</div>
+
+										{/* Phone Numbers */}
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Phone Numbers *
+											</label>
+											<div className="flex space-x-2 mt-1">
+												<Input
+													value={phoneInput}
+													onChange={(e) => setPhoneInput(e.target.value)}
+													placeholder="Enter phone number"
+													className="flex-1"
+												/>
+												<Button type="button" onClick={addPhoneNumber}>
+													Add
+												</Button>
+											</div>
+											<div className="space-y-2 mt-2">
+												{formData.phoneNumbers.map((phone, index) => (
+													<div
+														key={index}
+														className="flex items-center justify-between bg-gray-100 px-3 py-2 rounded">
+														<span className="text-sm">{phone}</span>
+														<button
+															type="button"
+															onClick={() => removePhoneNumber(index)}
+															className="text-red-500 hover:text-red-700">
+															<IconX size={16} />
+														</button>
+													</div>
+												))}
+											</div>
+										</div>
+
+										{/* Services */}
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Services *
+											</label>
+											<div className="flex space-x-2 mt-1">
+												<Input
+													value={serviceSearch}
+													onChange={(e) => setServiceSearch(e.target.value)}
+													placeholder="Enter service"
+													className="flex-1"
+												/>
+												<Button type="button" onClick={addService}>
+													Add
+												</Button>
+											</div>
+											<div className="space-y-2 mt-2">
+												{formData.services.map((service, index) => (
+													<div
+														key={index}
+														className="flex items-center justify-between bg-gray-100 px-3 py-2 rounded">
+														<span className="text-sm">{service}</span>
+														<button
+															type="button"
+															onClick={() => removeService(index)}
+															className="text-red-500 hover:text-red-700">
+															<IconX size={16} />
+														</button>
+													</div>
+												))}
+											</div>
+										</div>
+									</div>
+
+									{/* Column 3: Address */}
+									<div className="space-y-4">
+										<label className="text-sm font-medium text-gray-700">
+											Address *
+										</label>
+										<div className="grid grid-cols-1 gap-2">
+											<Input
+												placeholder="Street *"
+												value={newAddress.street}
+												onChange={(e) =>
+													setNewAddress({
+														...newAddress,
+														street: e.target.value,
+													})
+												}
+											/>
+											<Input
+												placeholder="City/LGA *"
+												value={newAddress.city}
+												onChange={(e) =>
+													setNewAddress({ ...newAddress, city: e.target.value })
+												}
+											/>
+											<Input
+												placeholder="State *"
+												value={newAddress.state}
+												onChange={(e) =>
+													setNewAddress({
+														...newAddress,
+														state: e.target.value,
+													})
+												}
+											/>
+											<Input
+												placeholder="Country *"
+												value={newAddress.country}
+												onChange={(e) =>
+													setNewAddress({
+														...newAddress,
+														country: e.target.value,
+													})
+												}
+											/>
+											<Button type="button" onClick={addAddress}>
+												Add Address
+											</Button>
+										</div>
+										<div className="space-y-2">
+											{formData.addresses.map((address, index) => (
+												<div
+													key={index}
+													className="bg-gray-100 p-3 rounded relative">
+													<button
+														type="button"
+														onClick={() => removeAddress(index)}
+														className="absolute top-2 right-2 text-red-500 hover:text-red-700">
+														<IconX size={16} />
+													</button>
+													<p className="text-sm">
+														<strong>Street:</strong> {address.street}
+													</p>
+													<p className="text-sm">
+														<strong>City:</strong> {address.city}
+													</p>
+													<p className="text-sm">
+														<strong>State:</strong> {address.state}
+													</p>
+													<p className="text-sm">
+														<strong>Country:</strong> {address.country}
+													</p>
+												</div>
+											))}
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div className="flex justify-end pt-4 gap-3">
+							<Button type="button" variant="outline" onClick={handleReset}>
+								Reset
+							</Button>
+							<Button onClick={handleNextStep} className="bg-secondary-1">
+								Next
+							</Button>
+						</div>
+					</div>
+				) : (
+					<div className="space-y-4">
+						<div className="bg-gray-100 p-4 rounded-lg border border-gray-200">
+							<div className="bg-white p-4 rounded-lg shadow-sm">
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+									{/* Column 1: Consultation Details */}
+									<div className="space-y-4">
+										<h3 className="font-medium text-gray-700">
+											Consultation Details
+										</h3>
+
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Consultation Fee *
+											</label>
+											<Input
+												name="consultationFee"
+												type="number"
+												value={formData.consultationFee}
+												onChange={handleInputChange}
+												placeholder="Enter consultation fee"
+												className="mt-1"
+												required
+											/>
+										</div>
+
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Coverage Plans
+											</label>
+											<div className="grid grid-cols-2 gap-2 mt-1">
+												<Input
+													value={coverageInput.name}
+													onChange={(e) =>
+														setCoverageInput({
+															...coverageInput,
+															name: e.target.value,
+														})
+													}
+													placeholder="Coverage name"
+												/>
+												<Input
+													type="number"
+													value={coverageInput.fee}
+													onChange={(e) =>
+														setCoverageInput({
+															...coverageInput,
+															fee: e.target.value,
+														})
+													}
+													placeholder="Fee amount"
+												/>
+												<Button
+													type="button"
+													onClick={addCoverage}
+													className="col-span-2">
+													Add Coverage
+												</Button>
+											</div>
+											<div className="space-y-2 mt-2">
+												{formData.coverages.map((coverage, index) => (
+													<div
+														key={index}
+														className="flex items-center justify-between bg-gray-100 px-3 py-2 rounded">
+														<div>
+															<span className="text-sm font-medium">
+																{coverage.name}
+															</span>
+															<span className="text-sm text-gray-600 ml-2">
+																- ₦{coverage.fee.toLocaleString()}
+															</span>
+														</div>
+														<button
+															type="button"
+															onClick={() => removeCoverage(index)}
+															className="text-red-500 hover:text-red-700">
+															<IconX size={16} />
+														</button>
+													</div>
+												))}
+											</div>
+										</div>
+									</div>
+
+									{/* Column 2: Accreditation & License */}
+									<div className="space-y-4">
+										<h3 className="font-medium text-gray-700">
+											Accreditation & License
+										</h3>
+
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												License Number *
+											</label>
+											<Input
+												name="licenseNumber"
+												value={formData.licenseNumber}
+												onChange={handleInputChange}
+												placeholder="Enter license number"
+												className="mt-1"
+												required
+											/>
+										</div>
+
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Accreditation Body *
+											</label>
+											<Input
+												name="accreditationBody"
+												value={formData.accreditationBody}
+												onChange={handleInputChange}
+												placeholder="Enter accreditation body"
+												className="mt-1"
+												required
+											/>
+										</div>
+
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Certification Expiry Date *
+											</label>
+											<Input
+												name="expiryDate"
+												type="date"
+												value={formData.expiryDate}
+												onChange={handleInputChange}
+												className="mt-1"
+												required
+											/>
+										</div>
+
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Certification Number *
+											</label>
+											<Input
+												name="certificationNumber"
+												value={formData.certificationNumber}
+												onChange={handleInputChange}
+												placeholder="Enter certification number"
+												className="mt-1"
+												required
+											/>
+										</div>
+
+										<div>
+											<label className="text-sm font-medium text-gray-700">
+												Certificate File
+											</label>
+											<div
+												className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer mt-1"
+												onClick={() => certificateInputRef.current?.click()}>
+												{formData.certificatePreview ? (
+													<div className="relative">
+														<div className="flex items-center justify-center bg-gray-100 w-full h-32 rounded-md">
+															<span className="text-sm">
+																Certificate uploaded
+															</span>
+														</div>
+														<button
+															type="button"
+															className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1"
+															onClick={(e) => {
+																e.stopPropagation();
+																removeCertificate();
+															}}>
+															<IconX size={16} />
+														</button>
+													</div>
+												) : (
+													<>
+														<div className="text-gray-400 mb-2">
+															<IconPlus size={24} className="mx-auto" />
+														</div>
+														<p className="text-sm text-gray-500">
+															Click to upload certificate
+														</p>
+														<p className="text-xs text-gray-400">
+															PDF, DOC (max 10MB)
+														</p>
+													</>
+												)}
+												<input
+													type="file"
+													ref={certificateInputRef}
+													className="hidden"
+													onChange={handleCertificateUpload}
+													accept=".pdf,.doc,.docx"
+												/>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div className="flex justify-end gap-3 pt-4">
+							<Button
+								type="button"
+								variant="outline"
+								onClick={handlePreviousStep}>
+								Back
+							</Button>
+							<Button
+								onClick={handleSubmit}
+								className="bg-secondary-1"
+								disabled={isLoading}>
+								{isLoading ? "Submitting..." : "Submit"}
+							</Button>
+						</div>
+					</div>
+				)}
+			</Modal>
+
+			{/* Rest of the component remains the same */}
 			<div className="p-3 flex flex-row justify-between border-b-[1px] border-[#E2E4E9] bg-white items-center gap-20 max-w-full rounded-lg">
 				<div className="flex flex-row justify-start bg-white items-center rounded-lg mx-auto special-btn-farmer pr-2">
 					{["View All", "Active", "Inactive"].map((status, index, arr) => (
@@ -273,7 +1183,9 @@ export function LabDataTable<TData, TValue>({
 					<div className="w-[250px]">
 						<DateRangePicker dateRange={dateRange} onSelect={setDateRange} />
 					</div>
-					<Button className="bg-secondary-1 border-[1px] border-[#173C3D] text-primary-1 font-inter cborder">
+					<Button
+						className="bg-secondary-1 border-[1px] border-[#173C3D] text-primary-1 font-inter cborder"
+						onClick={openModal}>
 						<IconPlus /> Add Health Provider
 					</Button>
 				</div>

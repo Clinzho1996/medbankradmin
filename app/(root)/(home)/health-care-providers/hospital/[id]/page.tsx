@@ -12,7 +12,8 @@ import { getSession } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
 
 export type Staff = {
 	id: string;
@@ -43,57 +44,52 @@ function HospitalDetails() {
 	const [userData, setUserData] = useState<Staff | null>(null);
 	// Function to get the name initials from the user's name
 
-	const fetchStaff = useCallback(async () => {
-		setIsLoading(true);
+	const fetchProviderData = async () => {
 		try {
+			setIsLoading(true);
 			const session = await getSession();
+			const accessToken = session?.accessToken;
 
-			if (!session?.accessToken) {
+			if (!accessToken) {
 				console.error("No access token found.");
-				setIsLoading(false);
+				toast.error("No access token found. Please log in again.");
 				return;
 			}
 
-			const accessToken = session?.accessToken;
-
-			const response = await axios.get<ApiResponse>(
-				`https://api.kuditrak.ng/api/v1/user/${id}`,
+			const response = await axios.get(
+				`https://api.medbankr.ai/api/v1/administrator/provider/${id}`,
 				{
 					headers: {
 						Accept: "application/json",
-						redirect: "follow",
 						Authorization: `Bearer ${accessToken}`,
 					},
 				}
 			);
 
-			console.log("data", response?.data?.data);
-			setUserData(response?.data?.data);
-			setIsLoading(false);
-		} catch (error: unknown) {
-			if (axios.isAxiosError(error)) {
-				console.log(
-					"Error fetching post:",
-					error.response?.data || error.message
-				);
+			// CORRECTED LOGIC: Check the top-level boolean status
+			if (response.data.status === true) {
+				setUserData(response.data.data);
 			} else {
-				console.log("Unexpected error:", error);
+				toast.error("Failed to fetch provider data.");
 			}
+		} catch (error) {
+			console.error("Error fetching provider data:", error);
+			toast.error("Failed to fetch provider data. Please try again.");
 		} finally {
 			setIsLoading(false);
 		}
-	}, [id]);
+	};
 
 	useEffect(() => {
-		fetchStaff();
-	}, [fetchStaff]);
+		fetchProviderData();
+	}, [id]);
 
 	if (isLoading) {
 		return <Loader />;
 	}
 	return (
 		<div>
-			<HeaderBox title="Health Care Management" />
+			<HeaderBox title="Health Care Management / Hospital Details" />
 			<div className="flex flex-row justify-start items-center gap-2 mb-4 p-3 bg-[#F4F6F8] border-b border-[#6C72781A] m-0">
 				<Link
 					href="/health-care-providers"
@@ -102,7 +98,7 @@ function HospitalDetails() {
 				</Link>
 				<IconCaretRightFilled size={18} />
 				<p className="text-sm text-[#161616] font-normal ">
-					Detailed profile view for {userData?.first_name} {userData?.last_name}
+					Detailed profile view for {userData?.name}
 				</p>
 			</div>
 			<div className="flex flex-col sm:flex-row justify-between items-start px-4 py-2 gap-2 w-full max-w-[100vw]">

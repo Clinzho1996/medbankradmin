@@ -364,23 +364,48 @@ export function HospitalDataTable<TData, TValue>({
 			);
 			formDataToSend.append("certificate_verification", "false");
 
-			// Append arrays as JSON strings
+			// Append arrays as actual objects (not JSON strings)
 			formDataToSend.append(
 				"emails",
 				JSON.stringify(formData.officeEmail ? [formData.officeEmail] : [])
 			);
 			formDataToSend.append("phone", JSON.stringify(formData.phoneNumbers));
-			formDataToSend.append("address", JSON.stringify(formData.addresses));
-			formDataToSend.append("coverage", JSON.stringify(formData.coverages));
+
+			// FIX: Send address as object, not JSON string
+			// If you have multiple addresses, send the first one (or modify backend to accept array)
+			if (formData.addresses.length > 0) {
+				// Send the first address as an object
+				const address = formData.addresses[0];
+				formDataToSend.append("address[street]", address.street);
+				formDataToSend.append("address[city]", address.city);
+				formDataToSend.append("address[state]", address.state);
+				formDataToSend.append("address[country]", address.country);
+			} else {
+				// Append empty address fields if no address provided
+				formDataToSend.append("address[street]", "");
+				formDataToSend.append("address[city]", "");
+				formDataToSend.append("address[state]", "");
+				formDataToSend.append("address[country]", "");
+			}
+
+			// FIX: Send coverages as array of objects
+			formData.coverages.forEach((coverage, index) => {
+				formDataToSend.append(`coverage[${index}][name]`, coverage.name);
+				formDataToSend.append(
+					`coverage[${index}][fee]`,
+					coverage.fee.toString()
+				);
+			});
+
 			formDataToSend.append("services", JSON.stringify(formData.services));
 
 			// Append files
 			if (formData.image) {
-				formDataToSend.append("image", formData.image);
+				formDataToSend.append("provider_image", formData.image);
 			}
 
 			if (formData.certificate) {
-				formDataToSend.append("certificate", formData.certificate);
+				formDataToSend.append("certificate_file", formData.certificate);
 			}
 
 			// Log the form data for debugging
@@ -400,7 +425,7 @@ export function HospitalDataTable<TData, TValue>({
 				}
 			);
 
-			if (response.data.status === "true") {
+			if (response.data.status === true) {
 				toast.success("Health provider added successfully!");
 				closeModal();
 			} else {
