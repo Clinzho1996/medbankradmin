@@ -28,11 +28,68 @@ type ApiResponse = {
 };
 
 function TrafficSources() {
-	const [selectedRange, setSelectedRange] = useState("last_12_months");
+	const [selectedRange, setSelectedRange] = useState<
+		"today" | "week" | "month" | "all"
+	>("all");
 	const [trafficData, setTrafficData] = useState<
 		{ platform: string; value: number; color: string; barCount: number }[]
 	>([]);
 	const [isLoading, setIsLoading] = useState(false);
+
+	const fetchTrafficData = async (period: string) => {
+		setIsLoading(true);
+		try {
+			const session = await getSession();
+			if (!session?.accessToken) {
+				console.error("No access token found.");
+				setIsLoading(false);
+				return;
+			}
+
+			const response = await axios.get<ApiResponse>(
+				`https://api.medbankr.ai/api/v1/administrator/dashboard/traffic?preiod=${period}`,
+				{
+					headers: {
+						Accept: "application/json",
+						Authorization: `Bearer ${session.accessToken}`,
+					},
+				}
+			);
+
+			const platforms = response.data.data.platforms;
+			const formattedData = [
+				{
+					platform: "IOS",
+					value: platforms.ios.count,
+					color: "#8B5CF6",
+					barCount: 50,
+				},
+				{
+					platform: "Android",
+					value: platforms.android.count,
+					color: "#34D399",
+					barCount: 50,
+				},
+				{
+					platform: "Web",
+					value: platforms.web.count,
+					color: "#F59E0B",
+					barCount: 50,
+				},
+			];
+
+			setTrafficData(formattedData);
+		} catch (error) {
+			console.error("Error fetching traffic data:", error);
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	useEffect(() => {
+		fetchTrafficData(selectedRange);
+	}, [selectedRange]);
+
 	const maxValue = Math.max(...trafficData.map((item) => item.value), 1);
 
 	const renderBars = (filled: number, total: number, color: string) => {
@@ -51,60 +108,6 @@ function TrafficSources() {
 		);
 	};
 
-	useEffect(() => {
-		const fetchTrafficData = async () => {
-			setIsLoading(true);
-			try {
-				const session = await getSession();
-				if (!session?.accessToken) {
-					console.error("No access token found.");
-					setIsLoading(false);
-					return;
-				}
-
-				const response = await axios.get<ApiResponse>(
-					`https://api.medbankr.ai/api/v1/administrator/dashboard/traffic?preiod=all`,
-					{
-						headers: {
-							Accept: "application/json",
-							Authorization: `Bearer ${session.accessToken}`,
-						},
-					}
-				);
-
-				const platforms = response.data.data.platforms;
-				const formattedData = [
-					{
-						platform: "IOS",
-						value: platforms.ios.count,
-						color: "#8B5CF6",
-						barCount: 50,
-					},
-					{
-						platform: "Android",
-						value: platforms.android.count,
-						color: "#34D399",
-						barCount: 50,
-					},
-					{
-						platform: "Web",
-						value: platforms.web.count,
-						color: "#F59E0B",
-						barCount: 50,
-					},
-				];
-
-				setTrafficData(formattedData);
-			} catch (error) {
-				console.error("Error fetching traffic data:", error);
-			} finally {
-				setIsLoading(false);
-			}
-		};
-
-		fetchTrafficData();
-	}, []);
-
 	return (
 		<div className="p-5 bg-white rounded-xl border border-gray-200 w-full">
 			{/* Header */}
@@ -114,15 +117,20 @@ function TrafficSources() {
 					<h2 className="text-sm font-medium text-gray-800">Traffic Sources</h2>
 				</div>
 
-				<Select onValueChange={setSelectedRange} defaultValue={selectedRange}>
+				<Select
+					onValueChange={(value) =>
+						setSelectedRange(value as "today" | "week" | "month" | "all")
+					}
+					defaultValue={selectedRange}>
 					<SelectTrigger className="w-[150px] h-8 text-xs border rounded-lg px-3">
-						<SelectValue placeholder="Last 12 months" />
+						<SelectValue placeholder="Select Period" />
 					</SelectTrigger>
 					<SelectContent className="bg-white">
 						<SelectGroup>
-							<SelectItem value="last_12_months">Last 12 months</SelectItem>
-							<SelectItem value="last_6_months">Last 6 months</SelectItem>
-							<SelectItem value="last_3_months">Last 3 months</SelectItem>
+							<SelectItem value="today">Today</SelectItem>
+							<SelectItem value="week">This Week</SelectItem>
+							<SelectItem value="month">This Month</SelectItem>
+							<SelectItem value="all">All Time</SelectItem>
 						</SelectGroup>
 					</SelectContent>
 				</Select>
@@ -146,7 +154,7 @@ function TrafficSources() {
 							</div>
 
 							{renderBars(
-								Math.round((barCount * value) / maxValue), // scale relative to largest value
+								Math.round((barCount * value) / maxValue),
 								barCount,
 								color
 							)}
