@@ -1,10 +1,10 @@
 "use client";
 
 import HeaderBox from "@/components/HeaderBox";
-import Loader from "@/components/Loader";
 import StatCard from "@/components/StatCard";
 import SpendOverview from "@/components/TrafficSources";
 import TransactionTracker from "@/components/TransactionTracker";
+import { Skeleton } from "@/components/ui/skeleton";
 import TransactionTableComponent from "@/config/transaction-columns";
 import axios from "axios";
 import { getSession } from "next-auth/react";
@@ -47,19 +47,24 @@ interface DocumentData {
 	total: number;
 	percentage_change: number;
 }
+
+interface AdditionalStats {
+	totalActiveAppointments: number;
+	totalSpecialistProvider: number;
+	totalTransactions: number;
+	totalDocuments: number;
+	totalAppointments: number;
+}
+
 function Dashboard() {
 	const [dashboardData, setDashboardData] = useState<DashboardData | null>(
 		null
 	);
 	const [isLoading, setIsLoading] = useState(true);
 	const [document, setDocument] = useState<DocumentData | null>(null);
-	const [additionalStats, setAdditionalStats] = useState({
-		totalActiveAppointments: 0,
-		totalSpecialistProvider: 0,
-		totalTransactions: 0,
-		totalDocuments: 0,
-		totalAppointments: 0,
-	});
+	const [additionalStats, setAdditionalStats] =
+		useState<AdditionalStats | null>(null);
+	const [dataLoaded, setDataLoaded] = useState(false);
 
 	const formatBalance = (amount: number) => {
 		return new Intl.NumberFormat("en-NG", {
@@ -73,93 +78,182 @@ function Dashboard() {
 	const fetchDashboardData = async () => {
 		try {
 			setIsLoading(true);
+			setDataLoaded(false);
 			const session = await getSession();
 			const accessToken = session?.accessToken;
 
 			if (!accessToken) {
 				console.error("No access token found.");
 				toast.error("No access token found. Please log in again.");
+				setIsLoading(false);
 				return;
 			}
 
-			const response = await axios.get(
-				"https://api.medbankr.ai/api/v1/administrator/dashboard/user",
-				{
-					headers: {
-						Accept: "application/json",
-						Authorization: `Bearer ${accessToken}`,
-					},
-				}
-			);
+			// Fetch all data in parallel
+			const [userResponse, documentResponse, additionalResponse] =
+				await Promise.all([
+					axios.get(
+						"https://api.medbankr.ai/api/v1/administrator/dashboard/user",
+						{
+							headers: {
+								Accept: "application/json",
+								Authorization: `Bearer ${accessToken}`,
+							},
+						}
+					),
+					axios.get(
+						"https://api.medbankr.ai/api/v1/administrator/dashboard/document",
+						{
+							headers: {
+								Accept: "application/json",
+								Authorization: `Bearer ${accessToken}`,
+							},
+						}
+					),
+					// Simulate additional stats fetch - replace with actual API calls
+					new Promise((resolve) =>
+						setTimeout(
+							() =>
+								resolve({
+									data: {
+										totalActiveAppointments: 345,
+										totalSpecialistProvider: 45678,
+										totalTransactions: 2524000,
+										totalAppointments: 45678,
+									},
+								}),
+							500
+						)
+					),
+				]);
 
-			if (response.data.status === true) {
-				setDashboardData(response.data.data);
-
-				// You might want to fetch additional stats from different endpoints
-				// For now, using placeholder data as shown in your original component
-				setAdditionalStats({
-					totalActiveAppointments: 345,
-					totalSpecialistProvider: 45678,
-					totalTransactions: 2524000,
-					totalDocuments: 45678,
-					totalAppointments: 45678,
-				});
+			if (userResponse.data.status === true) {
+				setDashboardData(userResponse.data.data);
 			} else {
-				toast.error("Failed to fetch dashboard data.");
+				toast.error("Failed to fetch user dashboard data.");
 			}
+
+			if (documentResponse.data.status === true) {
+				setDocument(documentResponse.data.data);
+			} else {
+				toast.error("Failed to fetch document data.");
+			}
+
+			// Set additional stats
+			setAdditionalStats(
+				(additionalResponse as { data: AdditionalStats }).data
+			);
 		} catch (error) {
 			console.error("Error fetching dashboard data:", error);
 			toast.error("Failed to fetch dashboard data. Please try again.");
 		} finally {
 			setIsLoading(false);
-		}
-	};
-
-	const fetchDocumentData = async () => {
-		try {
-			setIsLoading(true);
-			const session = await getSession();
-			const accessToken = session?.accessToken;
-
-			if (!accessToken) {
-				console.error("No access token found.");
-				toast.error("No access token found. Please log in again.");
-				return;
-			}
-
-			const response = await axios.get(
-				"https://api.medbankr.ai/api/v1/administrator/dashboard/document",
-				{
-					headers: {
-						Accept: "application/json",
-						Authorization: `Bearer ${accessToken}`,
-					},
-				}
-			);
-
-			if (response.data.status === true) {
-				setDocument(response.data.data);
-			} else {
-				toast.error("Failed to fetch dashboard data.");
-			}
-		} catch (error) {
-			console.error("Error fetching dashboard data:", error);
-			toast.error("Failed to fetch dashboard data. Please try again.");
-		} finally {
-			setIsLoading(false);
+			setDataLoaded(true);
 		}
 	};
 
 	useEffect(() => {
 		fetchDashboardData();
-		fetchDocumentData();
 	}, []);
 
+	// Skeleton component for StatCard
+	const StatCardSkeleton = () => (
+		<div className="flex flex-col gap-2 p-4 border border-gray-200 rounded-lg bg-white">
+			<Skeleton className="h-4 w-3/4 bg-gray-300" />
+			<Skeleton className="h-8 w-1/2 bg-gray-300" />
+			<Skeleton className="h-3 w-1/3 bg-gray-300" />
+		</div>
+	);
+
+	// Main loading state
 	if (isLoading) {
-		return <Loader />;
+		return (
+			<div className="w-full overflow-x-hidden">
+				<HeaderBox title="Dashboard" />
+				<p className="text-sm text-[#6C7278] font-normal mb-4 p-3 bg-[#F4F6F8] border border-[#6C72781A]">
+					Glance overview of the platform&apos;s health, key performance
+					indicators (KPIs), and recent administrative activities.
+				</p>
+				<div className="bg-[#fff] flex flex-col px-4 py-2 gap-2 w-full max-w-[100vw]">
+					{/* Skeleton for KPI Section */}
+					<div className="border-[1px] border-[#E2E4E9] rounded-lg w-full bg-white overflow-hidden p-3 flex flex-col gap-3">
+						<div className="flex flex-row justify-start gap-2 items-center">
+							<Skeleton className="h-5 w-5 bg-gray-300 rounded" />
+							<Skeleton className="h-4 w-48 bg-gray-300" />
+						</div>
+
+						{/* Three rows of skeleton cards */}
+						<div className="flex flex-row justify-start gap-2 items-center">
+							<Skeleton className="h-5 w-5 bg-gray-300 rounded" />
+							<Skeleton className="h-4 w-48 bg-gray-300" />
+						</div>
+						<div className="flex flex-row justify-start gap-2 items-center">
+							<Skeleton className="h-5 w-5 bg-gray-300 rounded" />
+							<Skeleton className="h-4 w-48 bg-gray-300" />
+						</div>
+						<div className="flex flex-row justify-start gap-2 items-center">
+							<Skeleton className="h-5 w-5 bg-gray-300 rounded" />
+							<Skeleton className="h-4 w-48 bg-gray-300" />
+						</div>
+					</div>
+
+					{/* Skeleton for charts section */}
+					<div className="flex flex-col sm:flex-row justify-between items-start gap-4 w-full">
+						<div className="rounded-lg bg-white w-full sm:w-[50%] overflow-hidden">
+							<div className="p-3 bg-white rounded-lg border border-[#E2E4E9]">
+								<div className="flex flex-row justify-between items-center border-b-[1px] border-b-[#E2E4E9] py-2">
+									<div className="flex flex-row justify-start gap-2 items-center">
+										<Skeleton className="h-5 w-5 bg-gray-300 rounded" />
+										<Skeleton className="h-4 w-32 bg-gray-300" />
+									</div>
+									<Skeleton className="h-8 w-32 bg-gray-300 rounded" />
+								</div>
+								<div className="py-3 h-48 flex items-center justify-center">
+									<Skeleton className="h-full w-full bg-gray-300 rounded" />
+								</div>
+							</div>
+						</div>
+						<div className="rounded-lg bg-white w-full sm:w-[50%] overflow-hidden">
+							<div className="p-3 bg-white rounded-lg border border-[#E2E4E9]">
+								<div className="flex flex-row justify-between items-center border-b-[1px] border-b-[#E2E4E9] py-2">
+									<div className="flex flex-row justify-start gap-2 items-center">
+										<Skeleton className="h-5 w-5 bg-gray-300 rounded" />
+										<Skeleton className="h-4 w-32 bg-gray-300" />
+									</div>
+									<Skeleton className="h-8 w-32 bg-gray-300 rounded" />
+								</div>
+								<div className="py-3 h-48 flex items-center justify-center">
+									<Skeleton className="h-full w-full bg-gray-300 rounded" />
+								</div>
+							</div>
+						</div>
+					</div>
+
+					{/* Skeleton for table section */}
+					<div className="w-full overflow-x-auto">
+						<div className="bg-white rounded-lg border border-[#E2E4E9]">
+							<div className="p-3 border-b border-gray-200">
+								<Skeleton className="h-6 w-40 bg-gray-300" />
+							</div>
+							<div className="p-4 space-y-3">
+								{Array.from({ length: 5 }).map((_, index) => (
+									<div key={index} className="flex gap-4">
+										<Skeleton className="h-4 flex-1 bg-gray-300" />
+										<Skeleton className="h-4 flex-1 bg-gray-300" />
+										<Skeleton className="h-4 flex-1 bg-gray-300" />
+										<Skeleton className="h-4 flex-1 bg-gray-300" />
+									</div>
+								))}
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		);
 	}
 
-	if (!dashboardData) {
+	// Error state
+	if (!dataLoaded || !dashboardData || !additionalStats) {
 		return (
 			<div className="w-full overflow-x-hidden">
 				<HeaderBox title="Dashboard" />
