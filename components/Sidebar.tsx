@@ -135,7 +135,7 @@ const Sidebar = () => {
 									alt={item.label}
 									width={20}
 									height={20}
-									className="w-[20px] h-[20px] object-contain flex"
+									className="w-[30px] h-[30px] object-contain flex"
 								/>
 								{!isCollapsed && (
 									<p
