@@ -59,7 +59,7 @@ function Profile() {
 				const parsed = JSON.parse(item);
 				return Array.isArray(parsed) ? parsed : [parsed];
 			} catch (error) {
-				return [item];
+				console.log("Error parsing JSON string:", error);
 			}
 		});
 	};
