@@ -6,7 +6,7 @@ import Loader from "@/components/Loader";
 import Modal from "@/components/Modal";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { IconTrash } from "@tabler/icons-react";
+import { IconSend, IconTrash } from "@tabler/icons-react";
 import axios from "axios";
 import { getSession } from "next-auth/react";
 import Image from "next/image";
@@ -35,6 +35,7 @@ declare module "next-auth" {
 
 const StaffTable = () => {
 	const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
+	const [isResendModalOpen, setResendModalOpen] = useState(false);
 	const [selectedRow, setSelectedRow] = useState<any>(null);
 	const [isLoading, setIsLoading] = useState<boolean>(false);
 	const [tableData, setTableData] = useState<Staff[]>([]);
@@ -51,8 +52,17 @@ const StaffTable = () => {
 		setDeleteModalOpen(true);
 	};
 
+	const openResendModal = (row: any) => {
+		setSelectedRow(row.original);
+		setResendModalOpen(true);
+	};
+
 	const closeDeleteModal = () => {
 		setDeleteModalOpen(false);
+	};
+
+	const closeResendModal = () => {
+		setResendModalOpen(false);
 	};
 
 	const fetchStaffs = async (page = 1, limit = 50) => {
@@ -113,6 +123,37 @@ const StaffTable = () => {
 	useEffect(() => {
 		fetchStaffs(1, 50); // Fetch first page with higher limit
 	}, []);
+
+	const handleResend = async (id: string) => {
+		try {
+			const session = await getSession();
+			const accessToken = session?.accessToken;
+
+			if (!accessToken) {
+				console.error("No access token found.");
+				return;
+			}
+
+			const response = await axios.get(
+				`https://api.medbankr.ai/api/v1/administrator/staff/${id}/resend-invitation`,
+
+				{
+					headers: {
+						Accept: "application/json",
+						Authorization: `Bearer ${accessToken}`,
+						"Content-Type": "application/json",
+					},
+				}
+			);
+
+			if (response.status === 200) {
+				toast.success("Email sent successfully.");
+			}
+		} catch (error) {
+			console.error("Error sending email:", error);
+			toast.error("Failed to send email. Please try again.");
+		}
+	};
 
 	const deleteStaff = async (id: string) => {
 		try {
@@ -285,6 +326,13 @@ const StaffTable = () => {
 							<Button className="border border-[#E8E8E8]">View Details</Button>
 						</Link>
 
+						{actions.status === "active" ? null : (
+							<Button
+								className="border border-[#E8E8E8]"
+								onClick={() => openResendModal(row)}>
+								<IconSend color="#6B7280" /> Resend Verification Mail
+							</Button>
+						)}
 						<Button
 							className="border border-[#E8E8E8]"
 							onClick={() => openDeleteModal(row)}>
@@ -322,6 +370,32 @@ const StaffTable = () => {
 							onClick={async () => {
 								await deleteStaff(selectedRow.id);
 								closeDeleteModal();
+							}}>
+							Yes, Confirm
+						</Button>
+					</div>
+				</Modal>
+			)}
+
+			{isResendModalOpen && (
+				<Modal onClose={closeResendModal} isOpen={isResendModalOpen}>
+					<p>
+						Are you sure you want to resend verification mail to{" "}
+						{selectedRow?.full_name}'s account?
+					</p>
+
+					<p className="text-sm text-primary-6">This can't be undone</p>
+					<div className="flex flex-row justify-end items-center gap-3 font-inter mt-4">
+						<Button
+							className="border-[#E8E8E8] border-[1px] text-primary-6 text-xs"
+							onClick={closeDeleteModal}>
+							Cancel
+						</Button>
+						<Button
+							className="bg-[#F04F4A] text-white font-inter text-xs modal-delete"
+							onClick={async () => {
+								await handleResend(selectedRow.id);
+								closeResendModal();
 							}}>
 							Yes, Confirm
 						</Button>
