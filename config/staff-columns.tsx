@@ -330,7 +330,7 @@ const StaffTable = () => {
 							<Button
 								className="border border-[#E8E8E8]"
 								onClick={() => openResendModal(row)}>
-								<IconSend color="#6B7280" /> Resend Verification Mail
+								<IconSend color="#6B7280" /> Resend Verification
 							</Button>
 						)}
 						<Button
